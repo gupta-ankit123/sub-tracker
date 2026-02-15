@@ -1,0 +1,142 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id       String  @id @default(cuid())
+  email    String  @unique
+  name     String
+  password String
+  phone    String? @unique
+
+  currencyCode String @default("INR") @map("currency_code") @db.VarChar(3)
+  timezone     String @default("Asia/Kolkata")
+
+  lastLoginAt DateTime? @map("last_login_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedTime DateTime  @updatedAt @map("updated_at")
+
+  emailNotifications Boolean @default(true) @map("email_notifications")
+  pushNotifications  Boolean @default(true) @map("push_notifications")
+
+  subscriptions           Subscription[]
+  notificationPreferences NotificationPreference[]
+
+  @@map("users")
+}
+
+model Subscription {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  name        String  @db.VarChar(255)
+  description String? @db.Text
+  category    String  @db.VarChar(100)
+  logoUrl     String? @map("logo_url") @db.Text
+  websiteUrl  String? @map("website_url") @db.Text
+
+  amount       Decimal      @db.Decimal(10, 2)
+  currency     String       @default("INR") @db.VarChar(3)
+  billingCycle BillingCycle @map("billing_cycle")
+
+  firstBillingDate DateTime @map("first_billing_date")
+  lastBillingDate  DateTime @map("last_billing_date")
+  nextBillingDate  DateTime @map("next_billing_date")
+
+  status    SubscriptionStatus @default(ACTIVE)
+  autoRenew Boolean            @default(true) @map("auto_renew")
+
+  notes        String? @db.Text
+  reminderDays Int     @default(3) @map("reminder_days")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  billingHistory BillingHistory[]
+  notifications  NotificationPreference[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([nextBillingDate])
+  @@map("subscriptions")
+}
+
+model BillingHistory {
+  id             String @id @default(cuid())
+  subscriptionId String @map("subscription_id")
+
+  amount      Decimal  @db.Decimal(10, 2)
+  currency    String   @db.VarChar(3)
+  billingDate DateTime @map("billing_Date")
+
+  paymentStatus PaymentStatus @default(PENDING) @map("payment_status")
+  paymentMethod String?       @map("payment_method") @db.VarChar(50)
+  transactionId String?       @map("trnasaction_id") @db.VarChar(255)
+
+  notes String? @db.Text
+
+  createdAt    DateTime     @default(now()) @map("created_at")
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([billingDate])
+  @@index([subscriptionId])
+  @@map("billing_history")
+}
+
+model NotificationPreference {
+  id             String  @id @default(cuid())
+  userId         String  @map("user_id")
+  subscriptionId String? @map("subscription_id")
+
+  reminderDaysBefore Int     @default(3) @map("reminder_days_before")
+  enabled            Boolean @default(true)
+
+  sendEmail Boolean @default(true) @map("send_email")
+  sendPush  Boolean @default(true) @map("send_push")
+  sendSms   Boolean @default(false) @map("send_sms")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subscriptionId])
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+enum BillingCycle {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+  ONE_TIME
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
