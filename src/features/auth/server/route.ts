@@ -100,5 +100,19 @@ const app = new Hono()
         deleteCookie(c, "auth_token")
         return c.json({ message: "Logout successful" })
     })
+    .post("/send-otp", async (c) => {
+        const { email } = await c.req.json()
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 5 * 60000);
+
+        await prisma.otpVerification.create({
+            data: {
+                email,
+                otp: otpCode,
+                expiresAt,
+                userId: user.id
+            }
+        })
+    })
 
 export default app;

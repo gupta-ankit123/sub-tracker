@@ -29,9 +29,11 @@ model User {
 
   emailNotifications Boolean @default(true) @map("email_notifications")
   pushNotifications  Boolean @default(true) @map("push_notifications")
+  emailVerified      Boolean @default(false) @map("email_verified")
 
   subscriptions           Subscription[]
   notificationPreferences NotificationPreference[]
+  otpVerifications        OtpVerification[]
 
   @@map("users")
 }
@@ -116,6 +118,17 @@ model NotificationPreference {
   @@unique([userId, subscriptionId])
   @@index([userId])
   @@map("notification_preferences")
+}
+
+model OtpVerification {
+  id        String   @id @default(cuid())
+  email     String
+  otp       String
+  expiresAt DateTime
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("otp_verifications")
 }
 
 enum SubscriptionStatus {
