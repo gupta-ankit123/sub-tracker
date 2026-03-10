@@ -21,18 +21,20 @@ export const useLogin = () => {
             const response = await client.api.auth.login["$post"]({ json })
 
             if (!response.ok) {
-                throw new Error("Failed to login")
+                const errorData = await response.json() as { error?: string; message?: string }
+                throw new Error(errorData.error || errorData.message || "Failed to login")
             }
 
             return await response.json();
         },
         onSuccess: () => {
             toast.success("Logged In")
+            router.push("/")
             router.refresh();
             queryClient.invalidateQueries({ queryKey: ["current"] })
         },
-        onError: () => {
-            toast.error("Failed to Log in")
+        onError: (error) => {
+            toast.error(error.message || "Failed to Log in")
         }
     })
     return mutation;

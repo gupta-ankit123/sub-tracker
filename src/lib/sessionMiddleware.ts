@@ -1,6 +1,6 @@
 import { createMiddleware } from "hono/factory"
 import { deleteCookie, getCookie } from "hono/cookie"
-import { verifyToken } from "./jwt"
+import { verifyAccessToken } from "./jwt"
 import { prisma } from "./db"
 import { User } from "@/app/generated/prisma/client"
 
@@ -19,7 +19,7 @@ export const sessionMiddleware = createMiddleware<AdditionalContext>(async (c, n
     }
 
     try {
-        const payload = verifyToken(token);
+        const payload = verifyAccessToken(token);
         const userId = typeof payload === 'string' ? payload : payload.userId;
         const user = await prisma.user.findUnique({
             where: { id: userId as string }

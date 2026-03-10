@@ -1,24 +1,14 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { zValidator } from "@hono/zod-validator"
-import { loginSchema, registerSchema } from "../schemas";
+import { loginSchema, registerSchema, verifyOtpSchema } from "../schemas";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcrypt";
 import { deleteCookie, setCookie } from "hono/cookie"
-import { signToken } from "@/lib/jwt";
 import { sessionMiddleware } from "@/lib/sessionMiddleware";
+import { resend } from "@/lib/resend";
+import { createAccessToken, createRefreshToken, setAccessCookie, setRefreshCookie, getRefreshTokenFromCookie, verifyRefreshToken } from "@/lib/jwt";
 
-const isProduction = process.env.NODE_ENV === "production";
-
-const setAuthCookie = (c: Context, token: string) => {
-    setCookie(c, "auth_token", token, {
-        httpOnly: true,
-        sameSite: "Strict",
-        secure: isProduction,
-        maxAge: 60 * 60 * 24 * 7,
-        path: "/"
-    });
-}
 
 const app = new Hono()
     .get("/current", sessionMiddleware, (c) => {
@@ -36,6 +26,12 @@ const app = new Hono()
                 error: "Invalid credentials"
             }, 401)
         }
+        if (!user.emailVerified) {
+            return c.json(
+                { error: "Please verify your email first" },
+                403
+            );
+        }
 
         const validPassword = await bcrypt.compare(password, user.password)
         if (!validPassword) {
@@ -48,9 +44,11 @@ const app = new Hono()
             data: { lastLoginAt: new Date() }
         })
 
-        const token = signToken(user.id);
+        const accessToken = createAccessToken(user.id);
+        const refreshToken = createRefreshToken(user.id);
 
-        setAuthCookie(c, token);
+        setAccessCookie(c, accessToken);
+        setRefreshCookie(c, refreshToken);
 
         return c.json({
             message: "login successful",
@@ -73,18 +71,31 @@ const app = new Hono()
         }
 
         const hashedPassword = await bcrypt.hash(password, 10)
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiry = new Date(Date.now() + 5 * 60 * 1000);
 
         const user = await prisma.user.create({
             data: {
                 email,
                 password: hashedPassword,
                 name,
+                emailVerified: false,
+                otpCode: otp,
+                otpExpiry: expiry,
 
             },
         });
 
-        const token = signToken(user.id);
-        setAuthCookie(c, token);
+        const emailResult = await resend.emails.send({
+            from: process.env.EMAIL_FROM!,
+            to: email,
+            subject: "Verify your email",
+            text: `Your OTP is ${otp}. It will expire in 5 minutes.`,
+        });
+
+        if (emailResult.error) {
+            console.error("Resend error:", emailResult.error);
+        }
 
         return c.json({
             message: "Registration successful",
@@ -96,8 +107,74 @@ const app = new Hono()
         })
 
     })
+    .post("/verify-otp", zValidator("json", verifyOtpSchema), async (c) => {
+        const { email, otp } = c.req.valid("json");
+
+        try {
+            const user = await prisma.user.findUnique({
+                where: { email }
+            });
+
+            if (!user) {
+                return c.json({ error: "User not found" }, 404);
+            }
+
+            if (!user.otpCode || !user.otpExpiry) {
+                return c.json({ error: "OTP expired or invalid" }, 401);
+            }
+
+            if (user.otpCode !== otp) {
+                return c.json({ error: "OTP expired or invalid" }, 401);
+            }
+
+            if (user.otpExpiry < new Date()) {
+                return c.json({ error: "OTP expired or invalid" }, 401);
+            }
+
+            await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    emailVerified: true,
+                    otpCode: null,
+                    otpExpiry: null
+                }
+            });
+
+            const accessToken = createAccessToken(user.id);
+            const refreshToken = createRefreshToken(user.id);
+
+            setAccessCookie(c, accessToken);
+            setRefreshCookie(c, refreshToken);
+
+            return c.json({ message: "Email verified successfully" });
+        }
+        catch (error) {
+            console.log(error);
+            return c.json({ error: "Something went wrong" }, 500);
+        }
+    })
+    .post("/refresh", async (c) => {
+        const refreshToken = getRefreshTokenFromCookie(c);
+
+        if (!refreshToken) {
+            return c.json({ error: "Unauthorized" }, 401);
+        }
+
+        try {
+            const payload = verifyRefreshToken(refreshToken);
+
+            const accessToken = createAccessToken(payload.userId);
+
+            setAccessCookie(c, accessToken);
+
+            return c.json({ success: true });
+        } catch {
+            return c.json({ error: "Invalid refresh token" }, 401);
+        }
+    })
     .post("/logout", sessionMiddleware, async (c) => {
         deleteCookie(c, "auth_token")
+        deleteCookie(c, "refresh_token");
         return c.json({ message: "Logout successful" })
     })
 
