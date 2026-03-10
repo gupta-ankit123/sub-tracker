@@ -86,12 +86,16 @@ const app = new Hono()
             },
         });
 
-        await resend.emails.send({
+        const emailResult = await resend.emails.send({
             from: process.env.EMAIL_FROM!,
             to: email,
             subject: "Verify your email",
             text: `Your OTP is ${otp}. It will expire in 5 minutes.`,
         });
+
+        if (emailResult.error) {
+            console.error("Resend error:", emailResult.error);
+        }
 
         return c.json({
             message: "Registration successful",
