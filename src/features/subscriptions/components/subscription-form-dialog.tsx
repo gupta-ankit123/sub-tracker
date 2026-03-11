@@ -48,6 +48,7 @@ interface Subscription {
     autoRenew: boolean
     notes: string | null
     reminderDays: number
+    usageFrequency: string
 }
 
 interface SubscriptionFormProps {
@@ -77,7 +78,8 @@ export function SubscriptionFormDialog({ subscription, children }: SubscriptionF
                 : new Date().toISOString().split('T')[0],
             autoRenew: subscription?.autoRenew ?? true,
             notes: subscription?.notes || "",
-            reminderDays: subscription?.reminderDays ?? 3
+            reminderDays: subscription?.reminderDays ?? 3,
+            usageFrequency: subscription?.usageFrequency || "MONTHLY"
         },
     })
 
@@ -231,6 +233,31 @@ export function SubscriptionFormDialog({ subscription, children }: SubscriptionF
                                             <SelectItem value="SEMI_ANNUAL">Semi-Annual</SelectItem>
                                             <SelectItem value="ANNUAL">Annual</SelectItem>
                                             <SelectItem value="ONE_TIME">One Time</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control as any}
+                            name="usageFrequency"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>How often do you use this?</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="DAILY">Daily</SelectItem>
+                                            <SelectItem value="WEEKLY">Weekly</SelectItem>
+                                            <SelectItem value="MONTHLY">Monthly</SelectItem>
+                                            <SelectItem value="RARELY">Rarely</SelectItem>
+                                            <SelectItem value="NEVER">Never</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />

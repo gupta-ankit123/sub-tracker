@@ -64,6 +64,9 @@ model Subscription {
   paymentStatus  PaymentStatus @default(PENDING) @map("payment_status")
   paymentMethod String?     @map("payment_method") @db.VarChar(50)
 
+  lastUsedDate     DateTime?   @map("last_used_date")
+  usageFrequency   UsageFrequency @default(MONTHLY) @map("usage_frequency")
+
   notes        String? @db.Text
   reminderDays Int     @default(3) @map("reminder_days")
 
@@ -148,4 +151,12 @@ enum PaymentStatus {
   REFUNDED
   SKIPPED
   OVERDUE
+}
+
+enum UsageFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  RARELY
+  NEVER
 }

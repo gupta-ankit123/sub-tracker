@@ -76,7 +76,8 @@ const app = new Hono()
                 nextBillingDate,
                 autoRenew: data.autoRenew,
                 notes: data.notes || null,
-                reminderDays: data.reminderDays
+                reminderDays: data.reminderDays,
+                usageFrequency: data.usageFrequency || "MONTHLY"
             }
         });
 
@@ -253,6 +254,49 @@ const app = new Hono()
             data: {
                 paymentStatus: "SKIPPED"
             }
+        });
+
+        return c.json({ data: updated });
+    })
+    .post("/:id/mark-used", sessionMiddleware, zValidator("param", subscriptionIdSchema), async (c) => {
+        const user = c.get("user");
+        const { id } = c.req.valid("param");
+
+        const subscription = await prisma.subscription.findFirst({
+            where: { id, userId: user.id }
+        });
+
+        if (!subscription) {
+            return c.json({ error: "Subscription not found" }, 404);
+        }
+
+        const updated = await prisma.subscription.update({
+            where: { id },
+            data: {
+                lastUsedDate: new Date()
+            }
+        });
+
+        return c.json({ data: updated });
+    })
+    .patch("/:id/usage-frequency", sessionMiddleware, zValidator("param", subscriptionIdSchema), zValidator("json", z.object({
+        usageFrequency: z.enum(["DAILY", "WEEKLY", "MONTHLY", "RARELY", "NEVER"])
+    })), async (c) => {
+        const user = c.get("user");
+        const { id } = c.req.valid("param");
+        const { usageFrequency } = c.req.valid("json");
+
+        const subscription = await prisma.subscription.findFirst({
+            where: { id, userId: user.id }
+        });
+
+        if (!subscription) {
+            return c.json({ error: "Subscription not found" }, 404);
+        }
+
+        const updated = await prisma.subscription.update({
+            where: { id },
+            data: { usageFrequency }
         });
 
         return c.json({ data: updated });

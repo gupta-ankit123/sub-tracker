@@ -8,8 +8,9 @@ import { Plus, Edit, Trash2, Calendar, TrendingUp, Wallet, PieChart as PieChartI
 import { useDeleteSubscription } from "../api/use-delete-subscription"
 import { useMarkAsPaid } from "../api/use-mark-as-paid"
 import { useSkipPayment } from "../api/use-skip-payment"
+import { useMarkAsUsed } from "../api/use-mark-as-used"
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns"
-import { Check, SkipForward, AlertCircle, CheckCircle, Clock } from "lucide-react"
+import { Check, SkipForward, AlertCircle, CheckCircle, Clock, Zap } from "lucide-react"
 
 interface Subscription {
     id: string
@@ -29,6 +30,8 @@ interface Subscription {
     lastPaidDate: string | null
     paymentStatus: string
     paymentMethod: string | null
+    usageFrequency: string
+    lastUsedDate: string | null
 }
 
 function calculateMonthlyAmount(amount: string | number, billingCycle: string): number {
@@ -124,6 +127,7 @@ export function SubscriptionList() {
     const deleteMutation = useDeleteSubscription()
     const markAsPaidMutation = useMarkAsPaid()
     const skipPaymentMutation = useSkipPayment()
+    const markAsUsedMutation = useMarkAsUsed()
 
     const handleDelete = (id: string) => {
         if (confirm("Are you sure you want to delete this subscription?")) {
@@ -356,28 +360,40 @@ export function SubscriptionList() {
                         </div>
                         
                         <div className="mt-4 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                {subscription.paymentStatus === 'SUCCESS' ? (
-                                    <span className="flex items-center gap-1 text-green-600 text-sm">
-                                        <CheckCircle className="h-4 w-4" />
-                                        Paid {subscription.lastPaidDate ? `on ${new Date(subscription.lastPaidDate).toLocaleDateString()}` : ''}
-                                    </span>
-                                ) : subscription.paymentStatus === 'FAILED' ? (
-                                    <span className="flex items-center gap-1 text-red-600 text-sm">
-                                        <AlertCircle className="h-4 w-4" />
-                                        Payment Failed
-                                    </span>
-                                ) : subscription.paymentStatus === 'OVERDUE' ? (
-                                    <span className="flex items-center gap-1 text-red-600 text-sm">
-                                        <AlertCircle className="h-4 w-4" />
-                                        Overdue
-                                    </span>
-                                ) : (
-                                    <span className="flex items-center gap-1 text-yellow-600 text-sm">
-                                        <Clock className="h-4 w-4" />
-                                        Pending
-                                    </span>
-                                )}
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    {subscription.paymentStatus === 'SUCCESS' ? (
+                                        <span className="flex items-center gap-1 text-green-600 text-sm">
+                                            <CheckCircle className="h-4 w-4" />
+                                            Paid {subscription.lastPaidDate ? `on ${new Date(subscription.lastPaidDate).toLocaleDateString()}` : ''}
+                                        </span>
+                                    ) : subscription.paymentStatus === 'FAILED' ? (
+                                        <span className="flex items-center gap-1 text-red-600 text-sm">
+                                            <AlertCircle className="h-4 w-4" />
+                                            Payment Failed
+                                        </span>
+                                    ) : subscription.paymentStatus === 'OVERDUE' ? (
+                                        <span className="flex items-center gap-1 text-red-600 text-sm">
+                                            <AlertCircle className="h-4 w-4" />
+                                            Overdue
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center gap-1 text-yellow-600 text-sm">
+                                            <Clock className="h-4 w-4" />
+                                            Pending
+                                        </span>
+                                    )}
+                                </div>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-7"
+                                    onClick={() => markAsUsedMutation.mutate({ param: { id: subscription.id } })}
+                                    disabled={markAsUsedMutation.isPending}
+                                >
+                                    <Zap className="h-3 w-3 mr-1" />
+                                    I just used this
+                                </Button>
                             </div>
                             <div className="flex gap-2">
                                 {subscription.paymentStatus !== 'SUCCESS' && (

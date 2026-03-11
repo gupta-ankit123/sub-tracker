@@ -15,6 +15,7 @@ export const SUBSCRIPTION_CATEGORIES = [
 
 export const billingCycleEnum = z.enum(["WEEKLY", "MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "ANNUAL", "ONE_TIME"])
 export const subscriptionStatusEnum = z.enum(["ACTIVE", "PAUSED", "CANCELLED", "EXPIRED"])
+export const usageFrequencyEnum = z.enum(["DAILY", "WEEKLY", "MONTHLY", "RARELY", "NEVER"])
 export const createSubscriptionSchema = z.object({
     name: z.string().trim().min(1, "Name is required").max(255),
     description: z.string().optional(),
@@ -27,7 +28,8 @@ export const createSubscriptionSchema = z.object({
     firstBillingDate: z.string().transform((str) => new Date(str)),
     autoRenew: z.boolean().default(true),
     notes: z.string().optional(),
-    reminderDays: z.number().int().min(0).max(30).default(3)
+    reminderDays: z.number().int().min(0).max(30).default(3),
+    usageFrequency: usageFrequencyEnum.default("MONTHLY")
 })
 export const updateSubscriptionSchema = z.object({
     name: z.string().trim().min(1, "Name is required").max(255).optional(),
@@ -42,7 +44,8 @@ export const updateSubscriptionSchema = z.object({
     autoRenew: z.boolean().optional(),
     status: subscriptionStatusEnum.optional(),
     notes: z.string().optional().nullable(),
-    reminderDays: z.number().int().min(0).max(30).optional()
+    reminderDays: z.number().int().min(0).max(30).optional(),
+    usageFrequency: usageFrequencyEnum.optional()
 })
 export const subscriptionIdSchema = z.object({
     id: z.string().min(1, "Subscription ID is required")
