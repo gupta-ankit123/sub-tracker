@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Edit, Trash2, Calendar, TrendingUp, Wallet, PieChart as PieChartIcon } from "lucide-react"
 import { useDeleteSubscription } from "../api/use-delete-subscription"
+import { useMarkAsPaid } from "../api/use-mark-as-paid"
+import { useSkipPayment } from "../api/use-skip-payment"
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns"
+import { Check, SkipForward, AlertCircle, CheckCircle, Clock } from "lucide-react"
 
 interface Subscription {
     id: string
@@ -23,6 +26,9 @@ interface Subscription {
     autoRenew: boolean
     notes: string | null
     reminderDays: number
+    lastPaidDate: string | null
+    paymentStatus: string
+    paymentMethod: string | null
 }
 
 function calculateMonthlyAmount(amount: string | number, billingCycle: string): number {
@@ -116,6 +122,8 @@ function SimplePieChart({ data }: { data: { name: string; value: number; color: 
 export function SubscriptionList() {
     const { data, isLoading } = useSubscriptions()
     const deleteMutation = useDeleteSubscription()
+    const markAsPaidMutation = useMarkAsPaid()
+    const skipPaymentMutation = useSkipPayment()
 
     const handleDelete = (id: string) => {
         if (confirm("Are you sure you want to delete this subscription?")) {
@@ -305,40 +313,97 @@ export function SubscriptionList() {
                 {subscriptions.map((subscription) => (
                     <div
                         key={subscription.id}
-                        className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow"
+                        className={`p-4 bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow ${
+                            subscription.paymentStatus === 'SUCCESS' ? 'border-l-4 border-l-green-500' :
+                            subscription.paymentStatus === 'FAILED' ? 'border-l-4 border-l-red-500' :
+                            subscription.paymentStatus === 'OVERDUE' ? 'border-l-4 border-l-red-500' :
+                            'border-l-4 border-l-yellow-500'
+                        }`}
                     >
-                        <div className="flex items-center gap-4">
-                            {subscription.logoUrl ? (
-                                <img
-                                    src={subscription.logoUrl}
-                                    alt={subscription.name}
-                                    className="w-12 h-12 rounded-lg object-cover"
-                                />
-                            ) : (
-                                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                                    <span className="text-xl font-bold text-primary">
-                                        {subscription.name.charAt(0).toUpperCase()}
-                                    </span>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                {subscription.logoUrl ? (
+                                    <img
+                                        src={subscription.logoUrl}
+                                        alt={subscription.name}
+                                        className="w-12 h-12 rounded-lg object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                                        <span className="text-xl font-bold text-primary">
+                                            {subscription.name.charAt(0).toUpperCase()}
+                                        </span>
+                                    </div>
+                                )}
+                                <div>
+                                    <h3 className="font-semibold">{subscription.name}</h3>
+                                    <p className="text-sm text-muted-foreground">{subscription.category}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Due: {new Date(subscription.nextBillingDate).toLocaleDateString()}
+                                    </p>
                                 </div>
-                            )}
-                            <div>
-                                <h3 className="font-semibold">{subscription.name}</h3>
-                                <p className="text-sm text-muted-foreground">{subscription.category}</p>
-                                <p className="text-xs text-muted-foreground">
-                                    Next billing: {new Date(subscription.nextBillingDate).toLocaleDateString()}
-                                </p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                    <p className="font-bold text-lg">
+                                        {subscription.currency} {Number(subscription.amount).toFixed(2)}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {subscription.billingCycle.replace('_', ' ').toLowerCase()}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <div className="text-right">
-                                <p className="font-bold text-lg">
-                                    {subscription.currency} {Number(subscription.amount).toFixed(2)}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    {subscription.billingCycle.replace('_', ' ').toLowerCase()}
-                                </p>
+                        
+                        <div className="mt-4 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {subscription.paymentStatus === 'SUCCESS' ? (
+                                    <span className="flex items-center gap-1 text-green-600 text-sm">
+                                        <CheckCircle className="h-4 w-4" />
+                                        Paid {subscription.lastPaidDate ? `on ${new Date(subscription.lastPaidDate).toLocaleDateString()}` : ''}
+                                    </span>
+                                ) : subscription.paymentStatus === 'FAILED' ? (
+                                    <span className="flex items-center gap-1 text-red-600 text-sm">
+                                        <AlertCircle className="h-4 w-4" />
+                                        Payment Failed
+                                    </span>
+                                ) : subscription.paymentStatus === 'OVERDUE' ? (
+                                    <span className="flex items-center gap-1 text-red-600 text-sm">
+                                        <AlertCircle className="h-4 w-4" />
+                                        Overdue
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-1 text-yellow-600 text-sm">
+                                        <Clock className="h-4 w-4" />
+                                        Pending
+                                    </span>
+                                )}
                             </div>
                             <div className="flex gap-2">
+                                {subscription.paymentStatus !== 'SUCCESS' && (
+                                    <>
+                                        <Button
+                                            size="sm"
+                                            onClick={() => markAsPaidMutation.mutate({ 
+                                                json: { paymentMethod: 'upi' }, 
+                                                param: { id: subscription.id } 
+                                            })}
+                                            disabled={markAsPaidMutation.isPending}
+                                        >
+                                            <Check className="h-4 w-4 mr-1" />
+                                            Mark Paid
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => skipPaymentMutation.mutate({ param: { id: subscription.id } })}
+                                            disabled={skipPaymentMutation.isPending}
+                                        >
+                                            <SkipForward className="h-4 w-4 mr-1" />
+                                            Skip
+                                        </Button>
+                                    </>
+                                )}
                                 <SubscriptionFormDialog subscription={subscription}>
                                     <Button variant="outline" size="icon">
                                         <Edit className="h-4 w-4" />

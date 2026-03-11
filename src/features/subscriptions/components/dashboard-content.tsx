@@ -4,7 +4,7 @@ import { useSubscriptions } from "@/features/subscriptions/api/use-subscriptions
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
-import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet } from "lucide-react"
+import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check } from "lucide-react"
 import { useMemo } from "react"
 import Link from "next/link"
 
@@ -24,6 +24,9 @@ interface Subscription {
     notes: string | null
     reminderDays: number
     createdAt: string
+    lastPaidDate: string | null
+    paymentStatus: string
+    paymentMethod: string | null
 }
 
 function calculateMonthlyAmount(amount: string | number, billingCycle: string): number {
@@ -120,6 +123,14 @@ export function DashboardContent({ userName }: { userName: string }) {
 
         const autoRenewSubscriptions = activeSubscriptions.filter(sub => sub.autoRenew)
 
+        const paidThisMonth = activeSubscriptions.filter(sub => sub.paymentStatus === "SUCCESS")
+        const pendingThisMonth = activeSubscriptions.filter(sub => sub.paymentStatus === "PENDING")
+        const overdueThisMonth = activeSubscriptions.filter(sub => sub.paymentStatus === "OVERDUE" || sub.paymentStatus === "FAILED")
+
+        const paidAmount = paidThisMonth.reduce((sum, sub) => sum + Number(sub.amount), 0)
+        const pendingAmount = pendingThisMonth.reduce((sum, sub) => sum + Number(sub.amount), 0)
+        const overdueAmount = overdueThisMonth.reduce((sum, sub) => sum + Number(sub.amount), 0)
+
         return {
             monthlyTotal,
             annualTotal,
@@ -134,7 +145,14 @@ export function DashboardContent({ userName }: { userName: string }) {
                 value: totalCategoryAmount > 0 ? (value / totalCategoryAmount) * 100 : 0,
                 color: getCategoryColor(index)
             })),
-            upcomingSubs: activeSubscriptions.slice(0, 3)
+            upcomingSubs: activeSubscriptions.slice(0, 3),
+            paidCount: paidThisMonth.length,
+            pendingCount: pendingThisMonth.length,
+            overdueCount: overdueThisMonth.length,
+            paidAmount,
+            pendingAmount,
+            overdueAmount,
+            totalMonthlyAmount: paidAmount + pendingAmount + overdueAmount
         }
     }, [data])
 
@@ -209,6 +227,46 @@ export function DashboardContent({ userName }: { userName: string }) {
                         </CardContent>
                     </Card>
                 </div>
+
+                <Card className="mb-6">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <DollarSign className="h-5 w-5" />
+                            This Month's Bills
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="text-center p-4 bg-green-50 rounded-lg">
+                                <div className="flex items-center justify-center mb-2">
+                                    <CheckCircle className="h-6 w-6 text-green-600" />
+                                </div>
+                                <p className="text-2xl font-bold text-green-600">₹{insights?.paidAmount.toFixed(0) || 0}</p>
+                                <p className="text-sm text-green-700">Paid ({insights?.paidCount || 0})</p>
+                            </div>
+                            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                                <div className="flex items-center justify-center mb-2">
+                                    <Clock className="h-6 w-6 text-yellow-600" />
+                                </div>
+                                <p className="text-2xl font-bold text-yellow-600">₹{insights?.pendingAmount.toFixed(0) || 0}</p>
+                                <p className="text-sm text-yellow-700">Pending ({insights?.pendingCount || 0})</p>
+                            </div>
+                            <div className="text-center p-4 bg-red-50 rounded-lg">
+                                <div className="flex items-center justify-center mb-2">
+                                    <AlertCircle className="h-6 w-6 text-red-600" />
+                                </div>
+                                <p className="text-2xl font-bold text-red-600">₹{insights?.overdueAmount.toFixed(0) || 0}</p>
+                                <p className="text-sm text-red-700">Overdue ({insights?.overdueCount || 0})</p>
+                            </div>
+                        </div>
+                        <div className="mt-4 pt-4 border-t">
+                            <div className="flex justify-between items-center">
+                                <span className="font-medium">Total:</span>
+                                <span className="text-xl font-bold">₹{insights?.totalMonthlyAmount.toFixed(0) || 0}</span>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 <div className="grid gap-6 md:grid-cols-2 mb-6">
                     <Card>
