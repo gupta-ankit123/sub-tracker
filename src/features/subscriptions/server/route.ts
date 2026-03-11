@@ -127,6 +127,86 @@ const app = new Hono()
         });
 
         return c.json({ message: "Subscription deleted successfully" });
+    })
+    .get("/billing-history", sessionMiddleware, async (c) => {
+        const user = c.get("user");
+        
+        const subscriptions = await prisma.subscription.findMany({
+            where: { userId: user.id },
+            select: {
+                id: true,
+                name: true,
+                logoUrl: true,
+                billingCycle: true,
+                amount: true,
+                currency: true,
+                firstBillingDate: true,
+                lastBillingDate: true,
+                billingHistory: {
+                    orderBy: { billingDate: "desc" }
+                }
+            }
+        });
+
+        const historyData = subscriptions.flatMap(sub => {
+            const payments = [];
+            let currentDate = new Date(sub.firstBillingDate);
+            const now = new Date();
+            
+            while (currentDate <= now) {
+                const existingRecord = sub.billingHistory.find(
+                    h => new Date(h.billingDate).toDateString() === currentDate.toDateString()
+                );
+                
+                if (existingRecord) {
+                    payments.push(existingRecord);
+                } else if (currentDate <= sub.lastBillingDate) {
+                    payments.push({
+                        id: `generated-${sub.id}-${currentDate.toISOString()}`,
+                        subscriptionId: sub.id,
+                        amount: sub.amount,
+                        currency: sub.currency,
+                        billingDate: currentDate,
+                        paymentStatus: "SUCCESS" as const,
+                        paymentMethod: null,
+                        transactionId: null,
+                        notes: null,
+                        createdAt: currentDate,
+                        subscription: sub
+                    });
+                }
+                
+                switch (sub.billingCycle) {
+                    case "WEEKLY":
+                        currentDate.setDate(currentDate.getDate() + 7);
+                        break;
+                    case "MONTHLY":
+                        currentDate.setMonth(currentDate.getMonth() + 1);
+                        break;
+                    case "QUARTERLY":
+                        currentDate.setMonth(currentDate.getMonth() + 3);
+                        break;
+                    case "SEMI_ANNUAL":
+                        currentDate.setMonth(currentDate.getMonth() + 6);
+                        break;
+                    case "ANNUAL":
+                        currentDate.setFullYear(currentDate.getFullYear() + 1);
+                        break;
+                    default:
+                        break;
+                }
+                
+                if (sub.billingCycle === "ONE_TIME") break;
+            }
+            
+            return payments;
+        });
+
+        const sortedHistory = historyData.sort((a, b) => 
+            new Date(b.billingDate).getTime() - new Date(a.billingDate).getTime()
+        );
+
+        return c.json({ data: sortedHistory });
     });
 
 export default app;
