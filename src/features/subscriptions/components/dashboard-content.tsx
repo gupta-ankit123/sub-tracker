@@ -4,9 +4,10 @@ import { useSubscriptions } from "@/features/subscriptions/api/use-subscriptions
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
-import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check } from "lucide-react"
+import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check, Download, FileText } from "lucide-react"
 import { useMemo } from "react"
 import Link from "next/link"
+import { exportToCSV, exportToPDF } from "@/features/subscriptions/api/use-export"
 
 interface Subscription {
     id: string
@@ -410,6 +411,35 @@ export function DashboardContent({ userName }: { userName: string }) {
                             </SubscriptionFormDialog>
                             <Button className="w-full justify-start" variant="outline" asChild><Link href="/subscriptions"><Target className="mr-2 h-4 w-4" />View All Subscriptions</Link></Button>
                             <Button className="w-full justify-start" variant="outline" asChild><Link href="/analytics"><TrendingUp className="mr-2 h-4 w-4" />View Analytics</Link></Button>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 mb-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Download className="h-5 w-5" />
+                                Export Data
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            <Button 
+                                className="w-full justify-start" 
+                                variant="outline"
+                                onClick={exportToCSV}
+                            >
+                                <FileText className="mr-2 h-4 w-4" />
+                                Download CSV
+                            </Button>
+                            <Button 
+                                className="w-full justify-start" 
+                                variant="outline"
+                                onClick={exportToPDF}
+                            >
+                                <Download className="mr-2 h-4 w-4" />
+                                Download PDF Report
+                            </Button>
                         </CardContent>
                     </Card>
                 </div>

@@ -300,6 +300,194 @@ const app = new Hono()
         });
 
         return c.json({ data: updated });
+    })
+    .get("/export/csv", sessionMiddleware, async (c) => {
+        const user = c.get("user");
+        const subscriptions = await prisma.subscription.findMany({
+            where: { userId: user.id },
+            orderBy: { nextBillingDate: "asc" }
+        });
+
+        const headers = ["Name", "Amount", "Currency", "Billing Cycle", "Category", "Status", "Payment Status", "Next Billing Date", "Last Paid Date", "Auto Renew"];
+        const rows = subscriptions.map(sub => [
+            sub.name,
+            sub.amount.toString(),
+            sub.currency,
+            sub.billingCycle,
+            sub.category,
+            sub.status,
+            sub.paymentStatus,
+            sub.nextBillingDate.toISOString().split('T')[0],
+            sub.lastPaidDate ? sub.lastPaidDate.toISOString().split('T')[0] : "",
+            sub.autoRenew ? "Yes" : "No"
+        ]);
+
+        const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+
+        c.header("Content-Type", "text/csv");
+        c.header("Content-Disposition", `attachment; filename="subscriptions-${new Date().toISOString().split('T')[0]}.csv"`);
+        return c.text(csv);
+    })
+    .get("/export/pdf", sessionMiddleware, async (c) => {
+        const { jsPDF } = await import("jspdf");
+        const user = c.get("user");
+        
+        const subscriptions = await prisma.subscription.findMany({
+            where: { userId: user.id },
+            orderBy: { nextBillingDate: "asc" }
+        });
+
+        const activeSubscriptions = subscriptions.filter(s => s.status === "ACTIVE");
+        const totalMonthly = activeSubscriptions.reduce((sum, s) => {
+            const amount = Number(s.amount);
+            switch (s.billingCycle) {
+                case "WEEKLY": return sum + amount * 4.33;
+                case "MONTHLY": return sum + amount;
+                case "QUARTERLY": return sum + amount / 3;
+                case "SEMI_ANNUAL": return sum + amount / 6;
+                case "ANNUAL": return sum + amount / 12;
+                default: return sum;
+            }
+        }, 0);
+        
+        const annualTotal = totalMonthly * 12;
+        const dailyCost = totalMonthly / 30;
+
+        const categoryBreakdown = activeSubscriptions.reduce((acc, sub) => {
+            const amount = Number(sub.amount);
+            let monthlyAmount = amount;
+            switch (sub.billingCycle) {
+                case "WEEKLY": monthlyAmount = amount * 4.33; break;
+                case "QUARTERLY": monthlyAmount = amount / 3; break;
+                case "SEMI_ANNUAL": monthlyAmount = amount / 6; break;
+                case "ANNUAL": monthlyAmount = amount / 12; break;
+            }
+            acc[sub.category] = (acc[sub.category] || 0) + monthlyAmount;
+            return acc;
+        }, {} as Record<string, number>);
+
+        const topCategory = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1])[0];
+        
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let y = 20;
+
+        doc.setFontSize(22);
+        doc.setTextColor(40, 40, 40);
+        doc.text("Subscription Report", pageWidth / 2, y, { align: "center" });
+        y += 10;
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, y, { align: "center" });
+        y += 20;
+
+        doc.setFontSize(16);
+        doc.setTextColor(40, 40, 40);
+        doc.text("Spending Overview", 20, y);
+        y += 10;
+
+        doc.setFillColor(240, 240, 245);
+        doc.rect(20, y, pageWidth - 40, 45, "F");
+        
+        doc.setFontSize(11);
+        doc.setTextColor(60, 60, 60);
+        
+        doc.text(`Monthly Spending: ₹${totalMonthly.toFixed(2)}`, 30, y + 12);
+        doc.text(`Annual Projection: ₹${annualTotal.toFixed(2)}`, 30, y + 24);
+        doc.text(`Daily Cost: ₹${dailyCost.toFixed(2)}`, 30, y + 36);
+        
+        doc.text(`Total Subscriptions: ${subscriptions.length}`, 100, y + 12);
+        doc.text(`Active: ${activeSubscriptions.length}`, 100, y + 24);
+        doc.text(`Inactive: ${subscriptions.length - activeSubscriptions.length}`, 100, y + 36);
+        
+        y += 55;
+
+        if (topCategory) {
+            doc.setFontSize(16);
+            doc.setTextColor(40, 40, 40);
+            doc.text("Top Category", 20, y);
+            y += 10;
+            
+            const totalCategoryAmount = Object.values(categoryBreakdown).reduce((a, b) => a + b, 0);
+            const topCategoryPercent = ((topCategory[1] / totalCategoryAmount) * 100).toFixed(0);
+            
+            doc.setFontSize(12);
+            doc.text(`${topCategory[0]}: ₹${topCategory[1].toFixed(2)}/month (${topCategoryPercent}%)`, 30, y);
+            y += 15;
+        }
+
+        doc.setFontSize(14);
+        doc.setTextColor(40, 40, 40);
+        doc.text("Category Breakdown", 20, y);
+        y += 10;
+
+        const sortedCategories = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1]);
+        const colors = [
+            [136, 132, 216], [130, 202, 157], [255, 198, 88], [255, 115, 0], [0, 136, 254],
+            [0, 196, 159], [255, 187, 40], [255, 128, 66], [164, 222, 108], [208, 237, 87]
+        ];
+        
+        const total = Object.values(categoryBreakdown).reduce((a, b) => a + b, 0);
+        const maxBarWidth = 80;
+        
+        sortedCategories.slice(0, 6).forEach(([category, value], index) => {
+            const percent = (value / total) * 100;
+            const barWidth = (percent / 100) * maxBarWidth;
+            
+            doc.setFillColor(colors[index][0], colors[index][1], colors[index][2]);
+            doc.rect(30, y, barWidth, 6, "F");
+            
+            doc.setFontSize(9);
+            doc.setTextColor(60, 60, 60);
+            doc.text(`${category}`, 35, y + 4);
+            doc.text(`₹${value.toFixed(0)}/mo (${percent.toFixed(0)}%)`, 115, y + 4);
+            
+            y += 10;
+        });
+        
+        y += 10;
+
+        doc.setFontSize(14);
+        doc.setTextColor(40, 40, 40);
+        doc.text("Active Subscriptions", 20, y);
+        y += 10;
+
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Name", 20, y);
+        doc.text("Amount", 70, y);
+        doc.text("Cycle", 100, y);
+        doc.text("Category", 130, y);
+        doc.text("Status", 170, y);
+        
+        doc.setDrawColor(200, 200, 200);
+        doc.line(20, y + 2, 190, y + 2);
+        y += 8;
+
+        doc.setTextColor(40, 40, 40);
+        activeSubscriptions.slice(0, 15).forEach(sub => {
+            const name = sub.name.length > 20 ? sub.name.substring(0, 20) + "..." : sub.name;
+            doc.text(name, 20, y);
+            doc.text(`₹${sub.amount}`, 70, y);
+            doc.text(sub.billingCycle.replace("_", " "), 100, y);
+            const cat = sub.category.length > 12 ? sub.category.substring(0, 12) : sub.category;
+            doc.text(cat, 130, y);
+            doc.text(sub.paymentStatus, 170, y);
+            y += 6;
+            
+            if (y > 270) {
+                doc.addPage();
+                y = 20;
+            }
+        });
+
+        c.header("Content-Type", "application/pdf");
+        c.header("Content-Disposition", `attachment; filename="subscriptions-report-${new Date().toISOString().split('T')[0]}.pdf"`);
+        
+        const pdfBuffer = doc.output("arraybuffer");
+        const pdfBase64 = Buffer.from(pdfBuffer).toString("base64");
+        return c.text(pdfBase64);
     });
 
 export default app;
