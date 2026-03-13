@@ -4,9 +4,10 @@ import { useSubscriptions } from "@/features/subscriptions/api/use-subscriptions
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
-import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet } from "lucide-react"
+import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check, Download, FileText } from "lucide-react"
 import { useMemo } from "react"
 import Link from "next/link"
+import { exportToCSV, exportToPDF } from "@/features/subscriptions/api/use-export"
 
 interface Subscription {
     id: string
@@ -24,6 +25,11 @@ interface Subscription {
     notes: string | null
     reminderDays: number
     createdAt: string
+    lastPaidDate: string | null
+    paymentStatus: string
+    paymentMethod: string | null
+    usageFrequency: string
+    lastUsedDate: string | null
 }
 
 function calculateMonthlyAmount(amount: string | number, billingCycle: string): number {
@@ -113,12 +119,34 @@ export function DashboardContent({ userName }: { userName: string }) {
 
         const unusedSubscriptions = subscriptions.filter(sub => {
             if (sub.status !== "ACTIVE") return false
-            const createdDate = new Date(sub.createdAt)
-            const daysSinceCreated = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
-            return daysSinceCreated > 30
+            if (sub.usageFrequency === "NEVER") return true
+            if (!sub.lastUsedDate) {
+                return true
+            }
+            const lastUsed = new Date(sub.lastUsedDate)
+            const daysSinceUsed = Math.floor((Date.now() - lastUsed.getTime()) / (1000 * 60 * 60 * 24))
+            const thresholdDays = {
+                "DAILY": 7,
+                "WEEKLY": 14,
+                "MONTHLY": 45,
+                "RARELY": 60,
+                "NEVER": 30
+            }
+            return daysSinceUsed > (thresholdDays[sub.usageFrequency as keyof typeof thresholdDays] || 45)
         })
 
+        const potentialSavings = unusedSubscriptions.reduce((sum, sub) => 
+            sum + calculateMonthlyAmount(Number(sub.amount), sub.billingCycle), 0)
+
         const autoRenewSubscriptions = activeSubscriptions.filter(sub => sub.autoRenew)
+
+        const paidThisMonth = activeSubscriptions.filter(sub => sub.paymentStatus === "SUCCESS")
+        const pendingThisMonth = activeSubscriptions.filter(sub => sub.paymentStatus === "PENDING")
+        const overdueThisMonth = activeSubscriptions.filter(sub => sub.paymentStatus === "OVERDUE" || sub.paymentStatus === "FAILED")
+
+        const paidAmount = paidThisMonth.reduce((sum, sub) => sum + Number(sub.amount), 0)
+        const pendingAmount = pendingThisMonth.reduce((sum, sub) => sum + Number(sub.amount), 0)
+        const overdueAmount = overdueThisMonth.reduce((sum, sub) => sum + Number(sub.amount), 0)
 
         return {
             monthlyTotal,
@@ -134,7 +162,16 @@ export function DashboardContent({ userName }: { userName: string }) {
                 value: totalCategoryAmount > 0 ? (value / totalCategoryAmount) * 100 : 0,
                 color: getCategoryColor(index)
             })),
-            upcomingSubs: activeSubscriptions.slice(0, 3)
+            upcomingSubs: activeSubscriptions.slice(0, 3),
+            paidCount: paidThisMonth.length,
+            pendingCount: pendingThisMonth.length,
+            overdueCount: overdueThisMonth.length,
+            paidAmount,
+            pendingAmount,
+            overdueAmount,
+            totalMonthlyAmount: paidAmount + pendingAmount + overdueAmount,
+            potentialSavings,
+            unusedSubscriptions
         }
     }, [data])
 
@@ -210,6 +247,87 @@ export function DashboardContent({ userName }: { userName: string }) {
                     </Card>
                 </div>
 
+                <Card className="mb-6">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <DollarSign className="h-5 w-5" />
+                            This Month's Bills
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="text-center p-4 bg-green-50 rounded-lg">
+                                <div className="flex items-center justify-center mb-2">
+                                    <CheckCircle className="h-6 w-6 text-green-600" />
+                                </div>
+                                <p className="text-2xl font-bold text-green-600">₹{insights?.paidAmount.toFixed(0) || 0}</p>
+                                <p className="text-sm text-green-700">Paid ({insights?.paidCount || 0})</p>
+                            </div>
+                            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                                <div className="flex items-center justify-center mb-2">
+                                    <Clock className="h-6 w-6 text-yellow-600" />
+                                </div>
+                                <p className="text-2xl font-bold text-yellow-600">₹{insights?.pendingAmount.toFixed(0) || 0}</p>
+                                <p className="text-sm text-yellow-700">Pending ({insights?.pendingCount || 0})</p>
+                            </div>
+                            <div className="text-center p-4 bg-red-50 rounded-lg">
+                                <div className="flex items-center justify-center mb-2">
+                                    <AlertCircle className="h-6 w-6 text-red-600" />
+                                </div>
+                                <p className="text-2xl font-bold text-red-600">₹{insights?.overdueAmount.toFixed(0) || 0}</p>
+                                <p className="text-sm text-red-700">Overdue ({insights?.overdueCount || 0})</p>
+                            </div>
+                        </div>
+                        <div className="mt-4 pt-4 border-t">
+                            <div className="flex justify-between items-center">
+                                <span className="font-medium">Total:</span>
+                                <span className="text-xl font-bold">₹{insights?.totalMonthlyAmount.toFixed(0) || 0}</span>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {insights && insights.unusedCount > 0 && (
+                    <Card className="mb-6 border-orange-200 bg-orange-50/50">
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2 text-orange-700">
+                                <AlertCircle className="h-5 w-5" />
+                                Unused Subscriptions - Potential Savings
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="p-3 bg-orange-100 rounded-lg mb-4">
+                                <p className="text-orange-800 font-medium">
+                                    You could save <span className="text-xl font-bold">₹{insights.potentialSavings.toFixed(0)}/month</span> ({insights.potentialSavings * 12}/year) by cancelling unused subscriptions
+                                </p>
+                            </div>
+                            <div className="space-y-3">
+                                {insights.unusedSubscriptions?.map((sub: Subscription) => (
+                                    <div key={sub.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                                        <div className="flex items-center gap-3">
+                                            {sub.logoUrl ? <img src={sub.logoUrl} alt={sub.name} className="w-8 h-8 rounded" /> :
+                                                <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-sm font-bold">{sub.name.charAt(0)}</div>}
+                                            <div>
+                                                <p className="font-medium text-sm">{sub.name}</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {sub.lastUsedDate 
+                                                        ? `Last used ${Math.floor((Date.now() - new Date(sub.lastUsedDate).getTime()) / (1000 * 60 * 60 * 24))} days ago`
+                                                        : 'Never used'}
+                                                    {' • '}
+                                                    {sub.usageFrequency === 'NEVER' ? 'Marked as never used' : sub.usageFrequency.toLowerCase()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold">₹{calculateMonthlyAmount(Number(sub.amount), sub.billingCycle).toFixed(0)}/mo</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
                 <div className="grid gap-6 md:grid-cols-2 mb-6">
                     <Card>
                         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Lightbulb className="h-5 w-5 text-yellow-500" />Insights</CardTitle></CardHeader>
@@ -241,6 +359,7 @@ export function DashboardContent({ userName }: { userName: string }) {
                                         <div>
                                             <p className="font-medium text-sm">Unused Subscriptions</p>
                                             <p className="text-sm text-muted-foreground">You have <span className="font-bold text-orange-600">{insights.unusedCount}</span> subscription{insights.unusedCount > 1 ? 's' : ''} that might be unused</p>
+                                            <p className="text-sm text-orange-700 font-medium mt-1">Save ₹{insights.potentialSavings.toFixed(0)}/month by cancelling</p>
                                         </div>
                                     </div>
                                 </div>
@@ -292,6 +411,35 @@ export function DashboardContent({ userName }: { userName: string }) {
                             </SubscriptionFormDialog>
                             <Button className="w-full justify-start" variant="outline" asChild><Link href="/subscriptions"><Target className="mr-2 h-4 w-4" />View All Subscriptions</Link></Button>
                             <Button className="w-full justify-start" variant="outline" asChild><Link href="/analytics"><TrendingUp className="mr-2 h-4 w-4" />View Analytics</Link></Button>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 mb-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Download className="h-5 w-5" />
+                                Export Data
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            <Button 
+                                className="w-full justify-start" 
+                                variant="outline"
+                                onClick={exportToCSV}
+                            >
+                                <FileText className="mr-2 h-4 w-4" />
+                                Download CSV
+                            </Button>
+                            <Button 
+                                className="w-full justify-start" 
+                                variant="outline"
+                                onClick={exportToPDF}
+                            >
+                                <Download className="mr-2 h-4 w-4" />
+                                Download PDF Report
+                            </Button>
                         </CardContent>
                     </Card>
                 </div>
