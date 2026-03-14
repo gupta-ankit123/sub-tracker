@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useForm } from "react-hook-form"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -32,6 +33,8 @@ import {
 import { SUBSCRIPTION_CATEGORIES } from "../schemas"
 import { useCreateSubscription } from "../api/use-create-subscription"
 import { useUpdateSubscription } from "../api/use-update-subscription"
+import { useCreateUtilityBill } from "../api/use-utility-bills"
+import { Zap, CreditCard } from "lucide-react"
 
 interface Subscription {
     id: string
@@ -48,17 +51,22 @@ interface Subscription {
     autoRenew: boolean
     notes: string | null
     reminderDays: number
-    usageFrequency: string
+    usageFrequency?: string
 }
 
-interface SubscriptionFormProps {
-    subscription?: Subscription
+interface SubscriptionFormDialogProps {
     children?: React.ReactNode
+    subscription?: Subscription
+    onSuccess?: () => void
 }
 
-export function SubscriptionFormDialog({ subscription, children }: SubscriptionFormProps) {
+type FormType = "subscription" | "utility"
+
+export function SubscriptionFormDialog({ children, subscription, onSuccess }: SubscriptionFormDialogProps) {
     const [open, setOpen] = useState(false)
+    const [formType, setFormType] = useState<FormType>("subscription")
     const createMutation = useCreateSubscription()
+    const createUtilityMutation = useCreateUtilityBill()
     const updateMutation = useUpdateSubscription()
 
     const isEdit = !!subscription
@@ -82,6 +90,10 @@ export function SubscriptionFormDialog({ subscription, children }: SubscriptionF
             usageFrequency: subscription?.usageFrequency || "MONTHLY"
         },
     })
+
+    const { formState, watch } = form
+    const formValues = watch()
+    const isFormValid = formValues.name && formValues.category && formValues.amount > 0
 
     const onSubmit = (values: any) => {
         const payload = {
@@ -116,16 +128,55 @@ export function SubscriptionFormDialog({ subscription, children }: SubscriptionF
                 {children || <Button>Add Subscription</Button>}
             </DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
+                {!isEdit && (
+                    <div className="flex gap-2 mb-4">
+                        <button
+                            type="button"
+                            onClick={() => setFormType("subscription")}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg border ${
+                                formType === "subscription" 
+                                    ? "bg-primary text-primary-foreground" 
+                                    : "bg-background hover:bg-accent"
+                            }`}
+                        >
+                            <CreditCard className="h-4 w-4" />
+                            Subscription
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFormType("utility")}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg border ${
+                                formType === "utility" 
+                                    ? "bg-primary text-primary-foreground" 
+                                    : "bg-background hover:bg-accent"
+                            }`}
+                        >
+                            <Zap className="h-4 w-4" />
+                            Utility Bill
+                        </button>
+                    </div>
+                )}
                 <DialogHeader>
                     <DialogTitle>
-                        {isEdit ? "Edit Subscription" : "Add New Subscription"}
+                        {isEdit ? "Edit Subscription" : formType === "utility" ? "Add Utility Bill" : "Add New Subscription"}
                     </DialogTitle>
                     <DialogDescription>
                         {isEdit 
                             ? "Update your subscription details below." 
-                            : "Add a new subscription to track your recurring payments."}
+                            : formType === "utility"
+                                ? "Add a utility bill to track your variable expenses."
+                                : "Add a new subscription to track your recurring payments."}
                     </DialogDescription>
                 </DialogHeader>
+                {formType === "utility" && !isEdit ? (
+                    <UtilityBillForm 
+                        onSuccess={() => {
+                            setOpen(false)
+                            onSuccess?.()
+                        }} 
+                        onCancel={() => setOpen(false)}
+                    />
+                ) : (
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField
@@ -339,13 +390,127 @@ export function SubscriptionFormDialog({ subscription, children }: SubscriptionF
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={isPending}>
+                            <Button type="submit" disabled={isPending || !isFormValid}>
                                 {isPending ? "Saving..." : isEdit ? "Update" : "Create"}
                             </Button>
                         </DialogFooter>
                     </form>
                 </Form>
+                )}
             </DialogContent>
         </Dialog>
+    )
+}
+
+const UTILITY_CATEGORIES = [
+    { value: "Electricity", label: "Electricity ⚡" },
+    { value: "Water", label: "Water 💧" },
+    { value: "Gas", label: "Gas 🔥" },
+    { value: "Internet", label: "Internet 📡" },
+    { value: "Mobile Postpaid", label: "Mobile Postpaid 📱" },
+    { value: "Mobile Prepaid", label: "Mobile Prepaid 📲" },
+    { value: "Society Maintenance", label: "Society Maintenance 🏢" },
+    { value: "Other", label: "Other" },
+] as const
+
+function UtilityBillForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
+    const [formData, setFormData] = useState({
+        name: "",
+        category: "Electricity",
+        billingDay: "1",
+        amount: 0,
+        notes: "",
+    })
+    const createMutation = useCreateUtilityBill()
+
+    const handleSubmit = async () => {
+        const billingDay = parseInt(formData.billingDay)
+        if (isNaN(billingDay) || billingDay < 1 || billingDay > 31) {
+            toast.error("Billing day must be between 1 and 31")
+            return
+        }
+        try {
+            await createMutation.mutateAsync({
+                name: formData.name,
+                category: formData.category,
+                billingDay,
+                amount: formData.amount > 0 ? formData.amount : undefined,
+                notes: formData.notes || undefined,
+            })
+            toast.success("Utility bill added successfully!")
+            onSuccess()
+        } catch (error) {
+            toast.error("Failed to add utility bill")
+        }
+    }
+
+    return (
+        <div className="space-y-4">
+            <div>
+                <label className="text-sm font-medium">Name</label>
+                <Input 
+                    placeholder="e.g., Home Electricity"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="mt-1"
+                />
+            </div>
+            <div>
+                <label className="text-sm font-medium">Category</label>
+                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                    <SelectTrigger className="mt-1">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {UTILITY_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat.value} value={cat.value}>
+                                {cat.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div>
+                <label className="text-sm font-medium">Billing Day (1-31)</label>
+                <Input 
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={formData.billingDay}
+                    onChange={(e) => setFormData({ ...formData, billingDay: e.target.value })}
+                    className="mt-1"
+                />
+            </div>
+            <div>
+                <label className="text-sm font-medium">Initial Amount (Optional)</label>
+                <Input 
+                    type="number"
+                    placeholder="0.00"
+                    value={formData.amount || ""}
+                    onChange={(e) => {
+                        const val = e.target.value
+                        setFormData({ ...formData, amount: val === "" ? 0 : parseFloat(val) || 0 })
+                    }}
+                    className="mt-1"
+                />
+            </div>
+            <div>
+                <label className="text-sm font-medium">Notes (Optional)</label>
+                <Input 
+                    placeholder="Additional notes..."
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    className="mt-1"
+                />
+            </div>
+            <DialogFooter>
+                <Button type="button" variant="outline" onClick={onCancel}>
+                    Cancel
+                </Button>
+                <Button onClick={handleSubmit} disabled={!formData.name || createMutation.isPending}>
+                    {createMutation.isPending ? "Adding..." : "Create"}
+                </Button>
+            </DialogFooter>
+        </div>
     )
 }

@@ -24,8 +24,9 @@ export const useLogout = () => {
         },
         onSuccess: () => {
             toast.success("Logged out")
+            queryClient.clear()
+            router.push("/sign-in")
             router.refresh()
-            queryClient.invalidateQueries({ queryKey: ["current"] });
         },
         onError: () => {
             toast.error("Failed to logout")

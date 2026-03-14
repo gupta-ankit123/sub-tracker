@@ -1,10 +1,12 @@
 "use client"
 
 import { useSubscriptions } from "@/features/subscriptions/api/use-subscriptions"
+import { useUtilityBills } from "@/features/subscriptions/api/use-utility-bills"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
-import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check, Download, FileText } from "lucide-react"
+import { UtilityBillFormDialog } from "@/features/subscriptions/components/utility-bill-form-dialog"
+import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check, Download, FileText, Zap } from "lucide-react"
 import { useMemo } from "react"
 import Link from "next/link"
 import { exportToCSV, exportToPDF } from "@/features/subscriptions/api/use-export"
@@ -398,7 +400,10 @@ export function DashboardContent({ userName }: { userName: string }) {
                                             <p className="text-xs text-muted-foreground">{new Date(sub.nextBillingDate).toLocaleDateString()}</p>
                                         </div>
                                     </div>
-                                    <p className="font-medium">₹{Number(sub.amount).toFixed(2)}</p>
+                                    <div className="text-right">
+                                        <p className="font-medium">₹{Number(sub.amount).toFixed(2)}</p>
+                                        <p className="text-xs text-green-600">₹{(calculateMonthlyAmount(Number(sub.amount), sub.billingCycle) * 12).toFixed(0)}/yr</p>
+                                    </div>
                                 </div>
                             ))}
                         </CardContent>
@@ -409,7 +414,11 @@ export function DashboardContent({ userName }: { userName: string }) {
                             <SubscriptionFormDialog>
                                 <Button className="w-full justify-start" variant="outline"><Plus className="mr-2 h-4 w-4" />Add New Subscription</Button>
                             </SubscriptionFormDialog>
+                            <UtilityBillFormDialog>
+                                <Button className="w-full justify-start" variant="outline"><Zap className="mr-2 h-4 w-4" />Add Utility Bill</Button>
+                            </UtilityBillFormDialog>
                             <Button className="w-full justify-start" variant="outline" asChild><Link href="/subscriptions"><Target className="mr-2 h-4 w-4" />View All Subscriptions</Link></Button>
+                            <Button className="w-full justify-start" variant="outline" asChild><Link href="/utility-bills"><Zap className="mr-2 h-4 w-4" />Utility Bills</Link></Button>
                             <Button className="w-full justify-start" variant="outline" asChild><Link href="/analytics"><TrendingUp className="mr-2 h-4 w-4" />View Analytics</Link></Button>
                         </CardContent>
                     </Card>

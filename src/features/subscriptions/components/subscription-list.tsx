@@ -317,12 +317,11 @@ export function SubscriptionList() {
                 {subscriptions.map((subscription) => (
                     <div
                         key={subscription.id}
-                        className={`p-4 bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow ${
-                            subscription.paymentStatus === 'SUCCESS' ? 'border-l-4 border-l-green-500' :
-                            subscription.paymentStatus === 'FAILED' ? 'border-l-4 border-l-red-500' :
-                            subscription.paymentStatus === 'OVERDUE' ? 'border-l-4 border-l-red-500' :
-                            'border-l-4 border-l-yellow-500'
-                        }`}
+                        className={`p-4 bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow ${subscription.paymentStatus === 'SUCCESS' ? 'border-l-4 border-l-green-500' :
+                                subscription.paymentStatus === 'FAILED' ? 'border-l-4 border-l-red-500' :
+                                    subscription.paymentStatus === 'OVERDUE' ? 'border-l-4 border-l-red-500' :
+                                        'border-l-4 border-l-yellow-500'
+                            }`}
                     >
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
@@ -355,10 +354,13 @@ export function SubscriptionList() {
                                     <p className="text-sm text-muted-foreground">
                                         {subscription.billingCycle.replace('_', ' ').toLowerCase()}
                                     </p>
+                                    <p className="text-xs text-green-600 font-medium">
+                                        ₹{(calculateMonthlyAmount(Number(subscription.amount), subscription.billingCycle) * 12).toFixed(0)}/year
+                                    </p>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div className="mt-4 flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2">
@@ -400,9 +402,8 @@ export function SubscriptionList() {
                                     <>
                                         <Button
                                             size="sm"
-                                            onClick={() => markAsPaidMutation.mutate({ 
-                                                json: { paymentMethod: 'upi' }, 
-                                                param: { id: subscription.id } 
+                                            onClick={() => markAsPaidMutation.mutate({
+                                                param: { id: subscription.id }
                                             })}
                                             disabled={markAsPaidMutation.isPending}
                                         >

@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { SettingsIcon, CreditCardIcon, CalendarIcon, BarChart3Icon, ClockIcon, ListIcon } from "lucide-react"
+import { SettingsIcon, CreditCardIcon, CalendarIcon, BarChart3Icon, ClockIcon, ListIcon, Zap } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { GoCheckCircle, GoCheckCircleFill, GoHome, GoHomeFill, GoReport, GoCreditCard } from "react-icons/go"
@@ -18,6 +18,12 @@ const routes = [
         href: "/subscriptions",
         icon: ListIcon,
         activeIcon: GoCheckCircleFill
+    },
+    {
+        label: "Utility Bills",
+        href: "/utility-bills",
+        icon: Zap,
+        activeIcon: Zap
     },
     {
         label: "Upcoming Bills",

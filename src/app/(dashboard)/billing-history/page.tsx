@@ -42,8 +42,8 @@ export default function BillingHistoryPage() {
 
     const subscriptions: Subscription[] = data?.data || []
 
-    const filteredSubscriptions = filter === "all" 
-        ? subscriptions 
+    const filteredSubscriptions = filter === "all"
+        ? subscriptions
         : subscriptions.filter(item => item.paymentStatus === filter)
 
     const totalPaid = subscriptions
@@ -159,7 +159,7 @@ export default function BillingHistoryPage() {
                         <CardTitle>Payment Status</CardTitle>
                         <div className="flex items-center gap-2">
                             <Filter className="h-4 w-4 text-muted-foreground" />
-                            <select 
+                            <select
                                 value={filter}
                                 onChange={(e) => setFilter(e.target.value)}
                                 className="text-sm border rounded-md px-2 py-1"
@@ -181,14 +181,14 @@ export default function BillingHistoryPage() {
                                 </div>
                             ) : (
                                 filteredSubscriptions.map((item) => (
-                                    <div 
-                                        key={item.id} 
+                                    <div
+                                        key={item.id}
                                         className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                                     >
                                         <div className="flex items-center gap-3">
                                             {item.logoUrl ? (
-                                                <img 
-                                                    src={item.logoUrl} 
+                                                <img
+                                                    src={item.logoUrl}
                                                     alt={item.name}
                                                     className="w-10 h-10 rounded"
                                                 />
@@ -216,20 +216,19 @@ export default function BillingHistoryPage() {
                                             </span>
                                             {item.paymentStatus === "PENDING" || item.paymentStatus === "OVERDUE" ? (
                                                 <div className="flex gap-1">
-                                                    <Button 
-                                                        size="sm" 
+                                                    <Button
+                                                        size="sm"
                                                         variant="outline"
-                                                        onClick={() => markAsPaidMutation.mutate({ 
-                                                            json: { paymentMethod: 'upi' }, 
-                                                            param: { id: item.id } 
+                                                        onClick={() => markAsPaidMutation.mutate({
+                                                            param: { id: item.id }
                                                         })}
                                                         disabled={markAsPaidMutation.isPending}
                                                     >
                                                         <Check className="h-3 w-3 mr-1" />
                                                         Paid
                                                     </Button>
-                                                    <Button 
-                                                        size="sm" 
+                                                    <Button
+                                                        size="sm"
                                                         variant="outline"
                                                         onClick={() => skipPaymentMutation.mutate({ param: { id: item.id } })}
                                                         disabled={skipPaymentMutation.isPending}

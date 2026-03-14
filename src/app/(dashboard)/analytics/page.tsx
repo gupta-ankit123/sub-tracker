@@ -10,7 +10,7 @@ import { useMemo } from "react"
 interface Subscription {
     id: string
     name: string
-    amount: number
+    amount: string | number
     currency: string
     billingCycle: string
     category: string
@@ -24,27 +24,29 @@ interface Subscription {
     reminderDays: number
 }
 
-function calculateMonthlyAmount(amount: number, billingCycle: string): number {
+function calculateMonthlyAmount(amount: string | number, billingCycle: string): number {
+    const numAmount = typeof amount === 'string' ? Number(amount) : amount
     switch (billingCycle) {
-        case "WEEKLY": return amount * 4.33
-        case "MONTHLY": return amount
-        case "QUARTERLY": return amount / 3
-        case "SEMI_ANNUAL": return amount / 6
-        case "ANNUAL": return amount / 12
+        case "WEEKLY": return numAmount * 4.33
+        case "MONTHLY": return numAmount
+        case "QUARTERLY": return numAmount / 3
+        case "SEMI_ANNUAL": return numAmount / 6
+        case "ANNUAL": return numAmount / 12
         case "ONE_TIME": return 0
-        default: return amount
+        default: return numAmount
     }
 }
 
-function calculateAnnualAmount(amount: number, billingCycle: string): number {
+function calculateAnnualAmount(amount: string | number, billingCycle: string): number {
+    const numAmount = typeof amount === 'string' ? Number(amount) : amount
     switch (billingCycle) {
-        case "WEEKLY": return amount * 52
-        case "MONTHLY": return amount * 12
-        case "QUARTERLY": return amount * 4
-        case "SEMI_ANNUAL": return amount * 2
-        case "ANNUAL": return amount
-        case "ONE_TIME": return amount
-        default: return amount
+        case "WEEKLY": return numAmount * 52
+        case "MONTHLY": return numAmount * 12
+        case "QUARTERLY": return numAmount * 4
+        case "SEMI_ANNUAL": return numAmount * 2
+        case "ANNUAL": return numAmount
+        case "ONE_TIME": return numAmount
+        default: return numAmount
     }
 }
 
@@ -59,23 +61,23 @@ function getCategoryColor(index: number): string {
 function SimplePieChart({ data }: { data: { name: string; value: number; color: string }[] }) {
     const total = data.reduce((sum, item) => sum + item.value, 0)
     let cumulativePercent = 0
-    
+
     const slices = data.map((item) => {
         const percent = total > 0 ? (item.value / total) * 100 : 0
         const startAngle = cumulativePercent * 3.6
         cumulativePercent += percent
         const endAngle = cumulativePercent * 3.6
-        
+
         const startRad = (startAngle - 90) * (Math.PI / 180)
         const endRad = (endAngle - 90) * (Math.PI / 180)
-        
+
         const x1 = 50 + 40 * Math.cos(startRad)
         const y1 = 50 + 40 * Math.sin(startRad)
         const x2 = 50 + 40 * Math.cos(endRad)
         const y2 = 50 + 40 * Math.sin(endRad)
-        
+
         const largeArcFlag = percent > 50 ? 1 : 0
-        
+
         return {
             path: `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`,
             color: item.color,
@@ -115,7 +117,7 @@ function SimplePieChart({ data }: { data: { name: string; value: number; color: 
 
 function BarChart({ data }: { data: { label: string; value: number; color: string }[] }) {
     const maxValue = Math.max(...data.map(d => d.value), 1)
-    
+
     return (
         <div className="space-y-3">
             {data.map((item, i) => (
@@ -125,7 +127,7 @@ function BarChart({ data }: { data: { label: string; value: number; color: strin
                         <span className="font-medium">₹{item.value.toFixed(2)}</span>
                     </div>
                     <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                        <div 
+                        <div
                             className="h-full rounded-full transition-all"
                             style={{ width: `${(item.value / maxValue) * 100}%`, backgroundColor: item.color }}
                         />
@@ -148,12 +150,12 @@ export default function AnalyticsPage() {
 
     const analytics = useMemo(() => {
         const monthlyTotal = activeSubscriptions.reduce(
-            (sum, sub) => sum + calculateMonthlyAmount(Number(sub.amount), sub.billingCycle), 
+            (sum, sub) => sum + calculateMonthlyAmount(Number(sub.amount), sub.billingCycle),
             0
         )
-        
+
         const annualTotal = activeSubscriptions.reduce(
-            (sum, sub) => sum + calculateAnnualAmount(Number(sub.amount), sub.billingCycle), 
+            (sum, sub) => sum + calculateAnnualAmount(Number(sub.amount), sub.billingCycle),
             0
         )
 
@@ -164,7 +166,7 @@ export default function AnalyticsPage() {
         }, {} as Record<string, number>)
 
         const totalCategoryAmount = Object.values(categoryBreakdown).reduce((sum, val) => sum + val, 0)
-        
+
         const categoryData = Object.entries(categoryBreakdown)
             .sort((a, b) => b[1] - a[1])
             .map(([name, value], index) => ({
@@ -185,8 +187,8 @@ export default function AnalyticsPage() {
             color: getCategoryColor(index)
         }))
 
-        const avgPerSubscription = activeSubscriptions.length > 0 
-            ? monthlyTotal / activeSubscriptions.length 
+        const avgPerSubscription = activeSubscriptions.length > 0
+            ? monthlyTotal / activeSubscriptions.length
             : 0
 
         const highestSubscription = [...activeSubscriptions].sort(
@@ -330,8 +332,8 @@ export default function AnalyticsPage() {
                             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                                 <div className="flex items-center gap-4">
                                     {analytics.highestSubscription.logoUrl ? (
-                                        <img 
-                                            src={analytics.highestSubscription.logoUrl} 
+                                        <img
+                                            src={analytics.highestSubscription.logoUrl}
                                             alt={analytics.highestSubscription.name}
                                             className="w-12 h-12 rounded-lg"
                                         />
@@ -369,8 +371,8 @@ export default function AnalyticsPage() {
                             {analytics.categoryData.map((cat, i) => (
                                 <div key={i} className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div 
-                                            className="w-4 h-4 rounded-full" 
+                                        <div
+                                            className="w-4 h-4 rounded-full"
                                             style={{ backgroundColor: cat.color }}
                                         />
                                         <span>{cat.name}</span>

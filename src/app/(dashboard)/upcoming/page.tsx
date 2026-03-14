@@ -10,7 +10,7 @@ import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO, isWithinInt
 interface Subscription {
     id: string
     name: string
-    amount: number
+    amount: string | number
     currency: string
     billingCycle: string
     category: string
