@@ -136,7 +136,43 @@ export function SubscriptionList() {
     }
 
     if (isLoading) {
-        return <div className="flex items-center justify-center p-8">Loading...</div>
+        return (
+            <div className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-3">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="p-6 bg-white rounded-lg border">
+                            <div className="h-4 w-24 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            <div className="h-8 w-32 mt-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            <div className="h-4 w-20 mt-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                        </div>
+                    ))}
+                </div>
+
+                <div className="flex gap-2">
+                    {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="h-10 w-28 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                    ))}
+                </div>
+
+                <div className="space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} className="p-4 bg-white rounded-lg border">
+                            <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse" />
+                                <div className="flex-1">
+                                    <div className="h-5 w-40 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                    <div className="h-4 w-28 mt-1 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                </div>
+                                <div className="text-right">
+                                    <div className="h-5 w-20 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                    <div className="h-4 w-16 mt-1 ml-auto bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )
     }
 
     const subscriptions: Subscription[] = data?.data || []

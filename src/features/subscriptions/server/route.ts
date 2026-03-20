@@ -1,9 +1,8 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator"
-import { z } from "zod"
 import { prisma } from "@/lib/db";
 import { sessionMiddleware } from "@/lib/sessionMiddleware";
-import { createSubscriptionSchema, updateSubscriptionSchema, subscriptionIdSchema, createUtilityBillSchema, recordBillSchema, createEstimateSchema } from "../schemas";
+import { createSubscriptionSchema, updateSubscriptionSchema, subscriptionIdSchema, createUtilityBillSchema, recordBillSchema, createEstimateSchema, createBillingHistorySchema, updateBillingHistoryStatusSchema, updateUsageFrequencySchema } from "../schemas";
 import { BillingCycle } from "@/app/generated/prisma/client";
 
 function calculateNextBillingDate(billingCycle: BillingCycle, fromDate: Date): Date {
@@ -104,7 +103,8 @@ const app = new Hono()
             include: {
                 billRecords: {
                     orderBy: { billingMonth: "desc" },
-                    take: 3
+                    take: 3,
+                    distinct: ["billingMonth"],
                 },
                 billEstimates: {
                     orderBy: { billingMonth: "desc" },
@@ -129,7 +129,8 @@ const app = new Hono()
 
         const history = await prisma.billRecord.findMany({
             where: { subscriptionId: id },
-            orderBy: { billingMonth: "desc" }
+            orderBy: { billingMonth: "desc" },
+            distinct: ["billingMonth"],
         });
 
         return c.json({ data: history });
@@ -193,10 +194,13 @@ const app = new Hono()
         let maxAmount = data.maxAmount || null;
 
         if (data.estimationMethod === "HISTORICAL_AVG" || data.estimationMethod === "WEIGHTED_AVG") {
-            const historyCount = await prisma.billRecord.count({
-                where: { subscriptionId: data.subscriptionId }
+            const records = await prisma.billRecord.findMany({
+                where: { subscriptionId: data.subscriptionId },
+                orderBy: { billingMonth: "desc" },
+                take: 6
             });
-            
+            const historyCount = records.length;
+
             if (historyCount >= 6) {
                 confidenceScore = 0.85;
             } else if (historyCount >= 3) {
@@ -206,16 +210,10 @@ const app = new Hono()
             }
 
             if (!minAmount && !maxAmount && historyCount >= 3) {
-                const records = await prisma.billRecord.findMany({
-                    where: { subscriptionId: data.subscriptionId },
-                    orderBy: { billingMonth: "desc" },
-                    take: 6
-                });
-                
                 const amounts = records.map(r => Number(r.amount));
                 const avg = amounts.reduce((a, b) => a + b, 0) / amounts.length;
                 const stdDev = Math.sqrt(amounts.reduce((sq, n) => sq + Math.pow(n - avg, 2), 0) / amounts.length);
-                
+
                 minAmount = avg - stdDev;
                 maxAmount = avg + stdDev;
             }
@@ -292,18 +290,103 @@ const app = new Hono()
 
         const currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-        await prisma.billRecord.updateMany({
-            where: {
-                subscriptionId: id,
-                billingMonth: currentMonth
-            },
-            data: {
-                paidDate: new Date(),
-                paymentStatus: "SUCCESS"
-            }
+        const record = await prisma.billRecord.findFirst({
+            where: { subscriptionId: id, billingMonth: currentMonth }
+        });
+
+        if (!record) {
+            return c.json({ error: "No bill record found for current month. Please record the bill first." }, 404);
+        }
+
+        await prisma.billRecord.update({
+            where: { id: record.id },
+            data: { paidDate: new Date(), paymentStatus: "SUCCESS" }
         });
 
         return c.json({ data: { success: true } });
+    })
+    .patch("/utility-bills/records/:id/mark-paid", sessionMiddleware, zValidator("param", subscriptionIdSchema), async (c) => {
+        const user = c.get("user");
+        const { id } = c.req.valid("param");
+
+        const record = await prisma.billRecord.findFirst({
+            where: { id },
+            include: { subscription: { select: { userId: true } } }
+        });
+
+        if (!record || record.subscription.userId !== user.id) {
+            return c.json({ error: "Bill record not found" }, 404);
+        }
+
+        const updated = await prisma.billRecord.update({
+            where: { id },
+            data: { paidDate: new Date(), paymentStatus: "SUCCESS" }
+        });
+
+        return c.json({ data: updated });
+    })
+    .get("/utility-bills/:id/accuracy", sessionMiddleware, zValidator("param", subscriptionIdSchema), async (c) => {
+        const user = c.get("user");
+        const { id } = c.req.valid("param");
+
+        const subscription = await prisma.subscription.findFirst({
+            where: { id, userId: user.id, billType: "VARIABLE" }
+        });
+
+        if (!subscription) {
+            return c.json({ error: "Utility bill not found" }, 404);
+        }
+
+        const estimates = await prisma.billEstimate.findMany({
+            where: { 
+                subscriptionId: id,
+                actualAmount: { not: null }
+            },
+            orderBy: { billingMonth: "desc" }
+        });
+
+        if (estimates.length === 0) {
+            return c.json({ 
+                data: {
+                    totalEstimates: 0,
+                    accurateEstimates: 0,
+                    averageVariance: 0,
+                    accuracyPercentage: 0,
+                    within20Percent: 0,
+                    over20Percent: 0,
+                }
+            });
+        }
+
+        let accurateCount = 0;
+        let within20Count = 0;
+        let over20Count = 0;
+        let totalVariance = 0;
+
+        estimates.forEach(estimate => {
+            const variance = estimate.variancePercentage ? Number(estimate.variancePercentage) : 0;
+            totalVariance += Math.abs(variance);
+            
+            if (Math.abs(variance) <= 10) {
+                accurateCount++;
+            }
+            if (Math.abs(variance) <= 20) {
+                within20Count++;
+            } else {
+                over20Count++;
+            }
+        });
+
+        return c.json({ 
+            data: {
+                totalEstimates: estimates.length,
+                accurateEstimates: accurateCount,
+                averageVariance: totalVariance / estimates.length,
+                accuracyPercentage: (accurateCount / estimates.length) * 100,
+                within20Percent: within20Count,
+                over20Percent: over20Count,
+            }
+        });
     })
     .get("/:id", sessionMiddleware, zValidator("param", subscriptionIdSchema), async (c) => {
         const user = c.get("user");
@@ -419,13 +502,7 @@ const app = new Hono()
 
         return c.json({ data: billingHistory });
     })
-    .post("/billing-history", sessionMiddleware, zValidator("json", z.object({
-        subscriptionId: z.string(),
-        amount: z.number().positive(),
-        currency: z.string().default("INR"),
-        billingDate: z.string().transform((str) => new Date(str)),
-        paymentMethod: z.string().optional(),
-    })), async (c) => {
+    .post("/billing-history", sessionMiddleware, zValidator("json", createBillingHistorySchema), async (c) => {
         const user = c.get("user");
         const data = c.req.valid("json");
 
@@ -449,9 +526,7 @@ const app = new Hono()
 
         return c.json({ data: billingRecord }, 201);
     })
-    .patch("/billing-history/:id", sessionMiddleware, zValidator("param", z.object({ id: z.string() })), zValidator("json", z.object({
-        paymentStatus: z.enum(["PENDING", "SUCCESS", "FAILED", "REFUNDED"])
-    })), async (c) => {
+    .patch("/billing-history/:id", sessionMiddleware, zValidator("param", subscriptionIdSchema), zValidator("json", updateBillingHistoryStatusSchema), async (c) => {
         const user = c.get("user");
         const { id } = c.req.valid("param");
         const { paymentStatus } = c.req.valid("json");
@@ -540,9 +615,7 @@ const app = new Hono()
 
         return c.json({ data: updated });
     })
-    .patch("/:id/usage-frequency", sessionMiddleware, zValidator("param", subscriptionIdSchema), zValidator("json", z.object({
-        usageFrequency: z.enum(["DAILY", "WEEKLY", "MONTHLY", "RARELY", "NEVER"])
-    })), async (c) => {
+    .patch("/:id/usage-frequency", sessionMiddleware, zValidator("param", subscriptionIdSchema), zValidator("json", updateUsageFrequencySchema), async (c) => {
         const user = c.get("user");
         const { id } = c.req.valid("param");
         const { usageFrequency } = c.req.valid("json");

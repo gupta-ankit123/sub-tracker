@@ -1,44 +1,46 @@
 "use client"
 
 import { useState } from "react"
-import { DollarSign, Zap, Droplets, Flame, Wifi, Smartphone, Building, MoreHorizontal, Check, AlertCircle, TrendingUp } from "lucide-react"
+import { DollarSign, Zap, Droplets, Flame, Wifi, Smartphone, Building, MoreHorizontal, Check, AlertCircle, TrendingUp, History } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { useQueryClient } from "@tanstack/react-query"
-import { useCreateEstimate } from "../api/use-utility-bills"
+import { useCreateEstimate, useBillHistory, useEstimationAccuracy, useMarkBillRecordPaid } from "../api/use-utility-bills"
+import { Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 interface BillRecord {
     id: string
     billingMonth: string
-    amount: number
-    unitsConsumed?: number
-    billDate?: string
-    dueDate?: string
-    paidDate?: string
+    amount: string | number
+    unitsConsumed?: string | number | null
+    billDate?: string | null
+    dueDate?: string | null
+    paidDate?: string | null
     paymentStatus: string
 }
 
 interface BillEstimate {
     id: string
     billingMonth: string
-    estimatedAmount: number
+    estimatedAmount: number | string
     estimationMethod?: string
-    confidenceScore?: number
-    minAmount?: number
-    maxAmount?: number
-    actualAmount?: number
-    variance?: number
-    variancePercentage?: number
+    confidenceScore?: number | string | null
+    minAmount?: number | string | null
+    maxAmount?: number | string | null
+    actualAmount?: number | string | null
+    variance?: number | string | null
+    variancePercentage?: number | string | null
 }
 
 interface UtilityBill {
     id: string
     name: string
     category: string
-    billingDay?: number
-    amount?: number
+    billingDay?: number | null
+    amount?: number | string
     currency?: string
     billType?: string
     isVariable?: boolean
@@ -72,14 +74,18 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
     const [minAmount, setMinAmount] = useState("")
     const [maxAmount, setMaxAmount] = useState("")
     const [estimationMethod, setEstimationMethod] = useState<"MANUAL" | "HISTORICAL_AVG" | "WEIGHTED_AVG">("MANUAL")
+    const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
     const queryClient = useQueryClient()
     const createEstimateMutation = useCreateEstimate()
+    const markBillRecordPaid = useMarkBillRecordPaid()
+    const { data: historyData, isLoading: historyLoading } = useBillHistory(historyDialogOpen ? bill.id : "")
+    const { data: accuracyData } = useEstimationAccuracy(bill.id)
 
     const latestRecord = bill.billRecords?.[0]
     const latestEstimate = bill.billEstimates?.[0]
 
     const currentMonth = new Date()
-    const billingDueDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), bill.billingDay)
+    const billingDueDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), bill.billingDay ?? 1)
     if (billingDueDate < currentMonth) {
         billingDueDate.setMonth(billingDueDate.getMonth() + 1)
     }
@@ -99,6 +105,16 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
                 amount: parseFloat(recordAmount),
                 billingMonth: month
             })
+            
+            if (latestEstimate) {
+                const variance = ((parseFloat(recordAmount) - Number(latestEstimate.estimatedAmount)) / Number(latestEstimate.estimatedAmount)) * 100
+                if (variance > 20) {
+                    toast.warning(`Bill is ${variance.toFixed(0)}% higher than estimate! Consider reviewing your usage.`)
+                } else if (variance < -20) {
+                    toast.success(`Bill is ${Math.abs(variance).toFixed(0)}% lower than estimate. Great job saving!`)
+                }
+            }
+            
             setRecordDialogOpen(false)
             setRecordAmount("")
             queryClient.invalidateQueries({ queryKey: ["utility-bills"] })
@@ -193,8 +209,21 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
                             )}
                             <span className="text-sm font-medium">
                                 {Number(latestEstimate.variance) > 0 ? "+" : ""}₹{Number(latestEstimate.variance).toFixed(0)} 
-                                ({latestEstimate.variancePercentage?.toFixed(1)}%) vs estimate
+                                ({Number(latestEstimate.variancePercentage).toFixed(1)}%) vs estimate
                             </span>
+                        </div>
+                    )}
+
+                    {accuracyData?.data && accuracyData.data.totalEstimates > 0 && (
+                        <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                    Accuracy: {accuracyData.data.accuracyPercentage.toFixed(0)}%
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    {accuracyData.data.within20Percent}/{accuracyData.data.totalEstimates} within 20%
+                                </span>
+                            </div>
                         </div>
                     )}
 
@@ -215,6 +244,15 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
                             <TrendingUp className="h-4 w-4 mr-1" />
                             Estimate
                         </Button>
+                        {bill.billRecords && bill.billRecords.length > 0 && (
+                            <Button 
+                                size="sm" 
+                                variant="ghost"
+                                onClick={() => setHistoryDialogOpen(true)}
+                            >
+                                <History className="h-4 w-4" />
+                            </Button>
+                        )}
                     </div>
                 </CardContent>
             </Card>
@@ -335,6 +373,77 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
                                 {createEstimateMutation.isPending ? "Saving..." : "Save Estimate"}
                             </Button>
                         </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+                <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Bill History - {bill.name}</DialogTitle>
+                    </DialogHeader>
+                    <div className="pt-4">
+                        {historyLoading ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                            </div>
+                        ) : historyData?.data && historyData.data.length > 0 ? (
+                            <div className="space-y-2">
+                                {historyData.data.map((record: BillRecord) => (
+                                    <div 
+                                        key={record.id} 
+                                        className="flex items-center justify-between p-3 border rounded-lg"
+                                    >
+                                        <div>
+                                            <p className="font-medium">
+                                                {new Date(record.billingMonth).toLocaleDateString("en-IN", { 
+                                                    month: "short", 
+                                                    year: "numeric" 
+                                                })}
+                                            </p>
+                                            <p className={`text-sm ${
+                                                record.paymentStatus === "SUCCESS" ? "text-green-600" :
+                                                record.paymentStatus === "PENDING" ? "text-yellow-600" :
+                                                "text-muted-foreground"
+                                            }`}>
+                                                {record.paymentStatus === "SUCCESS" ? "Paid" : 
+                                                 record.paymentStatus === "PENDING" ? "Pending" : 
+                                                 record.paymentStatus}
+                                            </p>
+                                        </div>
+                                        <div className="text-right flex items-center gap-2">
+                                            <div>
+                                                <p className="font-bold">₹{Number(record.amount).toFixed(0)}</p>
+                                                {record.unitsConsumed && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {record.unitsConsumed} units
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {record.paymentStatus === "PENDING" && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => markBillRecordPaid.mutate(record.id)}
+                                                    disabled={markBillRecordPaid.isPending}
+                                                >
+                                                    {markBillRecordPaid.isPending ? "..." : "Mark Paid"}
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-center text-muted-foreground py-8">
+                                No bill history available
+                            </p>
+                        )}
+                    </div>
+                    <div className="flex justify-end pt-4">
+                        <Button variant="outline" onClick={() => setHistoryDialogOpen(false)}>
+                            Close
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>

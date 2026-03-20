@@ -67,7 +67,7 @@ export const createUtilityBillSchema = z.object({
     name: z.string().trim().min(1, "Name is required").max(255),
     category: z.enum(UTILITY_CATEGORIES),
     description: z.string().optional(),
-    billingDay: z.number().int().min(1).max(31),
+    billingDay: z.number().int().min(1).max(28),
     amount: z.number().positive("Amount must be positive").optional(),
     currency: z.string().length(3).default("INR"),
     notes: z.string().optional(),
@@ -93,8 +93,18 @@ export const createEstimateSchema = z.object({
     notes: z.string().optional(),
 })
 
-export const updateEstimateWithActualSchema = z.object({
+export const updateUsageFrequencySchema = z.object({
+    usageFrequency: z.enum(["DAILY", "WEEKLY", "MONTHLY", "RARELY", "NEVER"])
+})
+
+export const createBillingHistorySchema = z.object({
     subscriptionId: z.string().min(1, "Subscription ID is required"),
-    billingMonth: z.string().regex(/^\d{4}-\d{2}-01$/, "Billing month must be YYYY-MM-01 format"),
-    actualAmount: z.number().positive("Actual amount must be positive"),
+    amount: z.number().positive(),
+    currency: z.string().length(3).default("INR"),
+    billingDate: z.string().transform((str) => new Date(str)),
+    paymentMethod: z.string().optional(),
+})
+
+export const updateBillingHistoryStatusSchema = z.object({
+    paymentStatus: z.enum(["PENDING", "SUCCESS", "FAILED", "REFUNDED"])
 })

@@ -5,7 +5,7 @@ import { UtilityBillFormDialog } from "@/features/subscriptions/components/utili
 import { UtilityBillCard } from "@/features/subscriptions/components/utility-bill-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Zap, Droplets, Flame, Wifi, Smartphone, Building, Loader2 } from "lucide-react"
+import { Plus, Zap, Droplets, Flame, Wifi, Smartphone, Building, Loader2, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -13,19 +13,19 @@ interface UtilityBill {
     id: string
     name: string
     category: string
-    billingDay: number
-    amount: number
+    billingDay: number | null
+    amount: string | number
     currency: string
     billType: string
     isVariable: boolean
     status: string
     paymentStatus: string
-    billRecords: { id: string; billingMonth: string; amount: number; paymentStatus: string }[]
-    billEstimates: { id: string; billingMonth: string; estimatedAmount: number; confidenceScore: number }[]
+    billRecords: { id: string; billingMonth: string; amount: string | number; paymentStatus: string }[]
+    billEstimates: { id: string; billingMonth: string; estimatedAmount: string | number; confidenceScore: string | number | null }[]
 }
 
 export default function UtilityBillsPage() {
-    const { data, isLoading } = useUtilityBills()
+    const { data, isLoading, error } = useUtilityBills()
     const recordBillMutation = useRecordBill()
     const queryClient = useQueryClient()
 
@@ -58,10 +58,62 @@ export default function UtilityBillsPage() {
         return acc
     }, {} as Record<string, UtilityBill[]>)
 
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+                <AlertCircle className="h-10 w-10 text-red-500" />
+                <div className="text-center">
+                    <h3 className="text-lg font-semibold">Failed to load utility bills</h3>
+                    <p className="text-muted-foreground">Please try again later</p>
+                </div>
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                    Retry
+                </Button>
+            </div>
+        )
+    }
+
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <div className="h-8 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                        <div className="h-4 w-64 mt-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                    </div>
+                    <div className="h-10 w-40 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                    {[1, 2, 3].map((i) => (
+                        <Card key={i}>
+                            <CardHeader className="pb-2">
+                                <div className="h-4 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="h-8 w-16 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <Card key={i}>
+                            <CardContent className="p-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-gray-200 dark:bg-gray-800 animate-pulse" />
+                                    <div className="flex-1">
+                                        <div className="h-5 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                        <div className="h-4 w-24 mt-1 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                    </div>
+                                </div>
+                                <div className="h-6 w-20 mt-3 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                <div className="h-10 w-full mt-3 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
             </div>
         )
     }
@@ -111,6 +163,7 @@ export default function UtilityBillsPage() {
                     <CardContent>
                         <div className="text-2xl font-bold">
                             {utilityBills.filter(b => {
+                                if (b.billingDay == null) return false
                                 const dueDay = new Date()
                                 dueDay.setDate(b.billingDay)
                                 return dueDay.getMonth() === new Date().getMonth()

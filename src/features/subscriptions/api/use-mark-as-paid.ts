@@ -28,6 +28,8 @@ export const useMarkAsPaid = () => {
         onSuccess: () => {
             toast.success("Payment marked as paid!")
             queryClient.invalidateQueries({ queryKey: ["subscriptions"] })
+            queryClient.invalidateQueries({ queryKey: ["utility-bills"] })
+            queryClient.invalidateQueries({ queryKey: ["bill-history"] })
         },
         onError: (error) => {
             toast.error(error.message || "Failed to mark as paid")

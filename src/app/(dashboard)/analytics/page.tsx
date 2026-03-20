@@ -141,10 +141,6 @@ function BarChart({ data }: { data: { label: string; value: number; color: strin
 export default function AnalyticsPage() {
     const { data, isLoading } = useSubscriptions()
 
-    if (isLoading) {
-        return <div className="flex items-center justify-center p-8">Loading...</div>
-    }
-
     const subscriptions: Subscription[] = data?.data || []
     const activeSubscriptions = subscriptions.filter(sub => sub.status === "ACTIVE")
 
@@ -207,6 +203,55 @@ export default function AnalyticsPage() {
             cancelledCount: subscriptions.filter(s => s.status === "CANCELLED").length
         }
     }, [subscriptions, activeSubscriptions])
+
+    if (isLoading) {
+        return (
+            <div className="h-full bg-neutral-500/5 p-4 md:p-8 overflow-auto">
+                <div className="max-w-5xl mx-auto space-y-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="h-9 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            <div className="h-5 w-64 mt-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                        </div>
+                        <div className="h-10 w-40 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="p-6 bg-white rounded-lg border">
+                                <div className="h-4 w-28 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                <div className="h-9 w-32 mt-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div className="p-6 bg-white rounded-lg border">
+                            <div className="h-6 w-40 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            <div className="h-48 mt-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                        </div>
+                        <div className="p-6 bg-white rounded-lg border">
+                            <div className="h-6 w-40 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            <div className="space-y-3 mt-4">
+                                {[1, 2, 3, 4].map((i) => (
+                                    <div key={i} className="h-10 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6 bg-white rounded-lg border">
+                        <div className="h-6 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                        <div className="space-y-3 mt-4">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                                <div key={i} className="h-12 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     if (subscriptions.length === 0) {
         return (
