@@ -35,6 +35,7 @@ model User {
 
   subscriptions           Subscription[]
   notificationPreferences NotificationPreference[]
+  sentNotifications       SentNotification[]
 
   @@map("users")
 }
@@ -77,11 +78,12 @@ model Subscription {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  billingHistory BillingHistory[]
-  notifications  NotificationPreference[]
-  billRecords    BillRecord[]
-  billEstimates  BillEstimate[]
+  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  billingHistory    BillingHistory[]
+  notifications     NotificationPreference[]
+  billRecords       BillRecord[]
+  billEstimates     BillEstimate[]
+  sentNotifications SentNotification[]
 
   @@index([userId])
   @@index([userId, status])
@@ -243,4 +245,23 @@ enum PaymentMethod {
   CASH
   BANK_TRANSFER
   OTHER
+}
+
+model SentNotification {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  subscriptionId String   @map("subscription_id")
+
+  type    String @db.VarChar(50)  // "BILL_REMINDER", "OVERDUE_ALERT"
+  channel String @db.VarChar(20)  // "EMAIL"
+
+  sentAt   DateTime @default(now()) @map("sent_at")
+  metadata String?  @db.Text       // JSON for extra context
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, subscriptionId, type, sentAt])
+  @@index([sentAt])
+  @@map("sent_notifications")
 }

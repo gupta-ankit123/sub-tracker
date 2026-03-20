@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { zValidator } from "@hono/zod-validator"
-import { loginSchema, registerSchema, verifyOtpSchema } from "../schemas";
+import { loginSchema, registerSchema, verifyOtpSchema, updateProfileSchema, updateSettingsSchema, changePasswordServerSchema } from "../schemas";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcrypt";
 import { deleteCookie, setCookie } from "hono/cookie"
@@ -176,6 +176,94 @@ const app = new Hono()
         deleteCookie(c, "auth_token")
         deleteCookie(c, "refresh_token");
         return c.json({ message: "Logout successful" })
+    })
+    .patch("/profile", sessionMiddleware, zValidator("json", updateProfileSchema), async (c) => {
+        const user = c.get("user");
+        const { name, phone } = c.req.valid("json");
+
+        if (phone) {
+            const existing = await prisma.user.findFirst({
+                where: { phone, id: { not: user.id } }
+            });
+            if (existing) {
+                return c.json({ error: "Phone number already in use" }, 400);
+            }
+        }
+
+        const updatedUser = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                name,
+                phone: phone || null,
+            },
+        });
+
+        return c.json({ data: updatedUser });
+    })
+    .patch("/settings", sessionMiddleware, zValidator("json", updateSettingsSchema), async (c) => {
+        const user = c.get("user");
+        const { currencyCode, timezone, emailNotifications, pushNotifications, reminderDaysBefore } = c.req.valid("json");
+
+        const updatedUser = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                ...(currencyCode !== undefined && { currencyCode }),
+                ...(timezone !== undefined && { timezone }),
+                ...(emailNotifications !== undefined && { emailNotifications }),
+                ...(pushNotifications !== undefined && { pushNotifications }),
+            },
+        });
+
+        if (reminderDaysBefore !== undefined) {
+            const existingPref = await prisma.notificationPreference.findFirst({
+                where: { userId: user.id, subscriptionId: null },
+            });
+
+            if (existingPref) {
+                await prisma.notificationPreference.update({
+                    where: { id: existingPref.id },
+                    data: { reminderDaysBefore },
+                });
+            } else {
+                await prisma.notificationPreference.create({
+                    data: {
+                        userId: user.id,
+                        reminderDaysBefore,
+                    },
+                });
+            }
+        }
+
+        return c.json({ data: updatedUser });
+    })
+    .patch("/change-password", sessionMiddleware, zValidator("json", changePasswordServerSchema), async (c) => {
+        const user = c.get("user");
+        const { currentPassword, newPassword } = c.req.valid("json");
+
+        const validPassword = await bcrypt.compare(currentPassword, user.password);
+        if (!validPassword) {
+            return c.json({ error: "Current password is incorrect" }, 400);
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { password: hashedPassword },
+        });
+
+        return c.json({ message: "Password changed successfully" });
+    })
+    .delete("/account", sessionMiddleware, async (c) => {
+        const user = c.get("user");
+
+        await prisma.user.delete({
+            where: { id: user.id },
+        });
+
+        deleteCookie(c, "auth_token");
+        deleteCookie(c, "refresh_token");
+
+        return c.json({ message: "Account deleted successfully" });
     })
 
 export default app;
