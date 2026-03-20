@@ -60,12 +60,16 @@ model Subscription {
   status    SubscriptionStatus @default(ACTIVE)
   autoRenew Boolean            @default(true) @map("auto_renew")
 
-  lastPaidDate   DateTime?   @map("last_paid_date")
-  paymentStatus  PaymentStatus @default(PENDING) @map("payment_status")
-  paymentMethod String?     @map("payment_method") @db.VarChar(50)
+  lastPaidDate  DateTime?      @map("last_paid_date")
+  paymentStatus PaymentStatus  @default(PENDING) @map("payment_status")
+  paymentMethod PaymentMethod? @map("payment_method")
 
-  lastUsedDate     DateTime?   @map("last_used_date")
-  usageFrequency   UsageFrequency @default(MONTHLY) @map("usage_frequency")
+  lastUsedDate   DateTime?      @map("last_used_date")
+  usageFrequency UsageFrequency @default(MONTHLY) @map("usage_frequency")
+
+  billType   BillType @default(FIXED) @map("bill_type")
+  isVariable Boolean  @default(false) @map("is_variable")
+  billingDay Int?     @map("billing_day") // Day of month when bill is generated
 
   notes        String? @db.Text
   reminderDays Int     @default(3) @map("reminder_days")
@@ -76,10 +80,13 @@ model Subscription {
   user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   billingHistory BillingHistory[]
   notifications  NotificationPreference[]
+  billRecords    BillRecord[]
+  billEstimates  BillEstimate[]
 
   @@index([userId])
   @@index([userId, status])
   @@index([nextBillingDate])
+  @@index([paymentStatus, nextBillingDate]) // For "overdue bills" query
   @@map("subscriptions")
 }
 
@@ -91,9 +98,9 @@ model BillingHistory {
   currency    String   @db.VarChar(3)
   billingDate DateTime @map("billing_Date")
 
-  paymentStatus PaymentStatus @default(PENDING) @map("payment_status")
-  paymentMethod String?       @map("payment_method") @db.VarChar(50)
-  transactionId String?       @map("trnasaction_id") @db.VarChar(255)
+  paymentStatus PaymentStatus  @default(PENDING) @map("payment_status")
+  paymentMethod PaymentMethod? @map("payment_method")
+  transactionId String?        @map("tranasaction_id") @db.VarChar(255)
 
   notes String? @db.Text
 
@@ -128,6 +135,61 @@ model NotificationPreference {
   @@map("notification_preferences")
 }
 
+model BillRecord {
+  id             String @id @default(cuid())
+  subscriptionId String @map("subscription_id")
+
+  billingMonth  DateTime      @map("billing_month") // Which month this bill is for
+  amount        Decimal       @db.Decimal(10, 2)
+  unitsConsumed Decimal?      @map("units_consumed") @db.Decimal(10, 2) // kWh, liters, etc.
+  billDate      DateTime      @map("bill_date") // When bill was generated
+  dueDate       DateTime?     @map("due_date")
+  paidDate      DateTime?     @map("paid_date")
+  billImageUrl  String?       @map("bill_image_url") @db.Text
+  billPdfUrl    String?       @map("bill_pdf_url") @db.Text
+  paymentStatus PaymentStatus @default(PENDING) @map("payment_status")
+
+  notes String? @db.Text
+
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, billingMonth])
+  @@index([subscriptionId])
+  @@index([billingMonth])
+  @@map("bill_history")
+}
+
+model BillEstimate {
+  id             String @id @default(cuid())
+  subscriptionId String @map("subscription_id")
+
+  billingMonth       DateTime         @map("billing_month") // First day of month being estimated
+  estimatedAmount    Decimal          @db.Decimal(10, 2)
+  estimationMethod   EstimationMethod @map("estimation_method")
+  confidenceScore    Decimal?         @map("confidence_score") @db.Decimal(3, 2) // 0.00 to 1.00
+  minAmount          Decimal?         @map("min_amount") @db.Decimal(10, 2) // Estimated range minimum
+  maxAmount          Decimal?         @map("max_amount") @db.Decimal(10, 2) // Estimated range maximum
+  actualAmount       Decimal?         @map("actual_amount") @db.Decimal(10, 2) // Filled when actual bill arrives
+  variance           Decimal?         @map("variance") @db.Decimal(10, 2) // actual - estimated
+  variancePercentage Decimal?         @map("variance_percentage") @db.Decimal(5, 2)
+
+  notes String? @db.Text
+
+  estimatedAt      DateTime  @default(now()) @map("estimated_at") // When estimate was made
+  actualRecordedAt DateTime? @map("actual_recorded_at") // When actual was entered
+
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, billingMonth])
+  @@index([subscriptionId])
+  @@index([billingMonth])
+  @@map("bill_estimates")
+}
+
 enum SubscriptionStatus {
   ACTIVE
   PAUSED
@@ -159,4 +221,26 @@ enum UsageFrequency {
   MONTHLY
   RARELY
   NEVER
+}
+
+enum BillType {
+  FIXED
+  VARIABLE
+}
+
+enum EstimationMethod {
+  MANUAL
+  HISTORICAL_AVG
+  WEIGHTED_AVG
+  SEASONAL_AVG
+}
+
+enum PaymentMethod {
+  UPI
+  CARD
+  NET_BANKING
+  WALLET
+  CASH
+  BANK_TRANSFER
+  OTHER
 }

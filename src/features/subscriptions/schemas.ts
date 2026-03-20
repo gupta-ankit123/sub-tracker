@@ -13,9 +13,21 @@ export const SUBSCRIPTION_CATEGORIES = [
     "Other"
 ] as const;
 
+export const UTILITY_CATEGORIES = [
+    "Electricity",
+    "Water",
+    "Gas",
+    "Internet",
+    "Mobile Postpaid",
+    "Society Maintenance",
+    "Other"
+] as const;
+
 export const billingCycleEnum = z.enum(["WEEKLY", "MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "ANNUAL", "ONE_TIME"])
 export const subscriptionStatusEnum = z.enum(["ACTIVE", "PAUSED", "CANCELLED", "EXPIRED"])
 export const usageFrequencyEnum = z.enum(["DAILY", "WEEKLY", "MONTHLY", "RARELY", "NEVER"])
+export const billTypeEnum = z.enum(["FIXED", "VARIABLE"])
+export const estimationMethodEnum = z.enum(["MANUAL", "HISTORICAL_AVG", "WEIGHTED_AVG", "SEASONAL_AVG"])
 export const createSubscriptionSchema = z.object({
     name: z.string().trim().min(1, "Name is required").max(255),
     description: z.string().optional(),
@@ -49,4 +61,50 @@ export const updateSubscriptionSchema = z.object({
 })
 export const subscriptionIdSchema = z.object({
     id: z.string().min(1, "Subscription ID is required")
+})
+
+export const createUtilityBillSchema = z.object({
+    name: z.string().trim().min(1, "Name is required").max(255),
+    category: z.enum(UTILITY_CATEGORIES),
+    description: z.string().optional(),
+    billingDay: z.number().int().min(1).max(28),
+    amount: z.number().positive("Amount must be positive").optional(),
+    currency: z.string().length(3).default("INR"),
+    notes: z.string().optional(),
+})
+
+export const recordBillSchema = z.object({
+    subscriptionId: z.string().min(1, "Subscription ID is required"),
+    billingMonth: z.string().regex(/^\d{4}-\d{2}-01$/, "Billing month must be YYYY-MM-01 format"),
+    amount: z.number().positive("Amount must be positive"),
+    unitsConsumed: z.number().positive().optional(),
+    billDate: z.string().transform((str) => new Date(str)).optional(),
+    dueDate: z.string().transform((str) => new Date(str)).optional(),
+    notes: z.string().optional(),
+})
+
+export const createEstimateSchema = z.object({
+    subscriptionId: z.string().min(1, "Subscription ID is required"),
+    billingMonth: z.string().regex(/^\d{4}-\d{2}-01$/, "Billing month must be YYYY-MM-01 format"),
+    estimatedAmount: z.number().positive("Estimated amount must be positive"),
+    estimationMethod: estimationMethodEnum.default("MANUAL"),
+    minAmount: z.number().positive().optional(),
+    maxAmount: z.number().positive().optional(),
+    notes: z.string().optional(),
+})
+
+export const updateUsageFrequencySchema = z.object({
+    usageFrequency: z.enum(["DAILY", "WEEKLY", "MONTHLY", "RARELY", "NEVER"])
+})
+
+export const createBillingHistorySchema = z.object({
+    subscriptionId: z.string().min(1, "Subscription ID is required"),
+    amount: z.number().positive(),
+    currency: z.string().length(3).default("INR"),
+    billingDate: z.string().transform((str) => new Date(str)),
+    paymentMethod: z.string().optional(),
+})
+
+export const updateBillingHistoryStatusSchema = z.object({
+    paymentStatus: z.enum(["PENDING", "SUCCESS", "FAILED", "REFUNDED"])
 })

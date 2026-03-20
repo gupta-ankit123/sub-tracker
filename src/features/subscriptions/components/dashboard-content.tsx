@@ -1,10 +1,12 @@
 "use client"
 
 import { useSubscriptions } from "@/features/subscriptions/api/use-subscriptions"
+import { useUtilityBills } from "@/features/subscriptions/api/use-utility-bills"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
-import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check, Download, FileText } from "lucide-react"
+import { UtilityBillFormDialog } from "@/features/subscriptions/components/utility-bill-form-dialog"
+import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check, Download, FileText, Zap } from "lucide-react"
 import { useMemo } from "react"
 import Link from "next/link"
 import { exportToCSV, exportToPDF } from "@/features/subscriptions/api/use-export"
@@ -176,7 +178,49 @@ export function DashboardContent({ userName }: { userName: string }) {
     }, [data])
 
     if (isLoading) {
-        return <div className="flex items-center justify-center p-8">Loading...</div>
+        return (
+            <div className="h-full bg-neutral-500/5 p-4 md:p-8 overflow-auto">
+                <div className="max-w-4xl mx-auto space-y-6">
+                    <div>
+                        <div className="h-9 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                        <div className="h-5 w-80 mt-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="p-6 bg-white rounded-lg border">
+                                <div className="h-4 w-24 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                <div className="h-8 w-32 mt-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div className="p-6 bg-white rounded-lg border">
+                            <div className="h-6 w-40 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            <div className="h-40 mt-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                        </div>
+                        <div className="p-6 bg-white rounded-lg border">
+                            <div className="h-6 w-40 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            <div className="space-y-3 mt-4">
+                                {[1, 2, 3, 4].map((i) => (
+                                    <div key={i} className="h-12 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6 bg-white rounded-lg border">
+                        <div className="h-6 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                        <div className="space-y-3 mt-4">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="h-16 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
     }
 
     const subscriptions: Subscription[] = data?.data || []
@@ -398,7 +442,10 @@ export function DashboardContent({ userName }: { userName: string }) {
                                             <p className="text-xs text-muted-foreground">{new Date(sub.nextBillingDate).toLocaleDateString()}</p>
                                         </div>
                                     </div>
-                                    <p className="font-medium">₹{Number(sub.amount).toFixed(2)}</p>
+                                    <div className="text-right">
+                                        <p className="font-medium">₹{Number(sub.amount).toFixed(2)}</p>
+                                        <p className="text-xs text-green-600">₹{(calculateMonthlyAmount(Number(sub.amount), sub.billingCycle) * 12).toFixed(0)}/yr</p>
+                                    </div>
                                 </div>
                             ))}
                         </CardContent>
@@ -409,7 +456,11 @@ export function DashboardContent({ userName }: { userName: string }) {
                             <SubscriptionFormDialog>
                                 <Button className="w-full justify-start" variant="outline"><Plus className="mr-2 h-4 w-4" />Add New Subscription</Button>
                             </SubscriptionFormDialog>
+                            <UtilityBillFormDialog>
+                                <Button className="w-full justify-start" variant="outline"><Zap className="mr-2 h-4 w-4" />Add Utility Bill</Button>
+                            </UtilityBillFormDialog>
                             <Button className="w-full justify-start" variant="outline" asChild><Link href="/subscriptions"><Target className="mr-2 h-4 w-4" />View All Subscriptions</Link></Button>
+                            <Button className="w-full justify-start" variant="outline" asChild><Link href="/utility-bills"><Zap className="mr-2 h-4 w-4" />Utility Bills</Link></Button>
                             <Button className="w-full justify-start" variant="outline" asChild><Link href="/analytics"><TrendingUp className="mr-2 h-4 w-4" />View Analytics</Link></Button>
                         </CardContent>
                     </Card>

@@ -15,8 +15,8 @@ export const useMarkAsPaid = () => {
         Error,
         RequestType
     >({
-        mutationFn: async ({ json, param }) => {
-            const response = await client.api.subscriptions[":id"]["mark-paid"]["$post"]({ json, param })
+        mutationFn: async ({ param }) => {
+            const response = await client.api.subscriptions[":id"]["mark-paid"]["$post"]({ param })
 
             if (!response.ok) {
                 const errorData = await response.json() as { error?: string }
@@ -28,6 +28,8 @@ export const useMarkAsPaid = () => {
         onSuccess: () => {
             toast.success("Payment marked as paid!")
             queryClient.invalidateQueries({ queryKey: ["subscriptions"] })
+            queryClient.invalidateQueries({ queryKey: ["utility-bills"] })
+            queryClient.invalidateQueries({ queryKey: ["bill-history"] })
         },
         onError: (error) => {
             toast.error(error.message || "Failed to mark as paid")
