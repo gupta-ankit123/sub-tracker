@@ -6,10 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
 import { UtilityBillFormDialog } from "@/features/subscriptions/components/utility-bill-form-dialog"
-import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check, Download, FileText, Zap } from "lucide-react"
+import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check, Download, FileText, Zap, ShieldCheck } from "lucide-react"
 import { useMemo } from "react"
 import Link from "next/link"
 import { exportToCSV, exportToPDF } from "@/features/subscriptions/api/use-export"
+import { useSafeToSpend } from "@/features/budgets/api/use-safe-to-spend"
+import { useBudgets } from "@/features/budgets/api/use-budgets"
+import { IncomeDialog } from "@/features/budgets/components/income-dialog"
+import { cn } from "@/lib/utils"
 
 interface Subscription {
     id: string
@@ -97,6 +101,9 @@ function SimplePieChart({ data }: { data: { name: string; value: number; color: 
 
 export function DashboardContent({ userName }: { userName: string }) {
     const { data, isLoading } = useSubscriptions()
+    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`
+    const { data: stsData } = useSafeToSpend(currentMonth)
+    const { data: budgetsData } = useBudgets(currentMonth)
 
     const insights = useMemo(() => {
         const subscriptions = data?.data || []
@@ -123,6 +130,9 @@ export function DashboardContent({ userName }: { userName: string }) {
             if (sub.status !== "ACTIVE") return false
             if (sub.usageFrequency === "NEVER") return true
             if (!sub.lastUsedDate) {
+                // Give new subscriptions a 30-day grace period before flagging as unused
+                const daysSinceCreated = Math.floor((Date.now() - new Date(sub.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+                if (daysSinceCreated < 30) return false
                 return true
             }
             const lastUsed = new Date(sub.lastUsedDate)
@@ -371,6 +381,87 @@ export function DashboardContent({ userName }: { userName: string }) {
                         </CardContent>
                     </Card>
                 )}
+
+                {/* Safe-to-Spend Widget */}
+                {stsData?.data && (
+                    <Card className={cn(
+                        "mb-6",
+                        stsData.data.monthlyIncome === 0 ? "border-dashed" :
+                        stsData.data.safeToSpend / (stsData.data.monthlyIncome || 1) > 0.2 ? "bg-green-50/50 border-green-200" :
+                        stsData.data.safeToSpend / (stsData.data.monthlyIncome || 1) > 0.1 ? "bg-yellow-50/50 border-yellow-200" :
+                        "bg-red-50/50 border-red-200"
+                    )}>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <ShieldCheck className="h-5 w-5" />
+                                Safe to Spend
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {stsData.data.monthlyIncome === 0 ? (
+                                <div className="flex items-center justify-between">
+                                    <p className="text-sm text-muted-foreground">Set your income to track safe-to-spend</p>
+                                    <IncomeDialog>
+                                        <Button size="sm">Set Income</Button>
+                                    </IncomeDialog>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className={cn(
+                                            "text-3xl font-bold",
+                                            stsData.data.safeToSpend / stsData.data.monthlyIncome > 0.2 ? "text-green-600" :
+                                            stsData.data.safeToSpend / stsData.data.monthlyIncome > 0.1 ? "text-yellow-600" : "text-red-600"
+                                        )}>
+                                            {stsData.data.safeToSpend >= 0 ? "₹" : "-₹"}{Math.abs(stsData.data.safeToSpend).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            ₹{stsData.data.monthlyIncome.toLocaleString("en-IN")} income - ₹{stsData.data.fixedBills.toLocaleString("en-IN", { maximumFractionDigits: 0 })} bills - ₹{stsData.data.budgetAllocations.toLocaleString("en-IN")} budgets
+                                        </p>
+                                    </div>
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link href="/budgets">Manage Budgets</Link>
+                                    </Button>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Budget Alerts */}
+                {budgetsData?.data && budgetsData.data.length > 0 && (() => {
+                    const overBudget = budgetsData.data.filter(b => Number(b.limit) > 0 && b.spent / Number(b.limit) > 0.9)
+                    const warningBudget = budgetsData.data.filter(b => Number(b.limit) > 0 && b.spent / Number(b.limit) > 0.7 && b.spent / Number(b.limit) <= 0.9)
+                    if (overBudget.length === 0 && warningBudget.length === 0) return null
+                    return (
+                        <Card className="mb-6 border-red-200 bg-red-50/50">
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2 text-red-700">
+                                    <AlertCircle className="h-5 w-5" />
+                                    Budget Alerts
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                {overBudget.map(b => (
+                                    <div key={b.id} className="flex items-center justify-between p-3 bg-red-100 rounded-lg">
+                                        <span className="font-medium text-red-800">{b.category}</span>
+                                        <span className="text-sm text-red-700">
+                                            ₹{b.spent.toLocaleString("en-IN")} / ₹{Number(b.limit).toLocaleString("en-IN")} ({Math.round(b.spent / Number(b.limit) * 100)}%)
+                                        </span>
+                                    </div>
+                                ))}
+                                {warningBudget.map(b => (
+                                    <div key={b.id} className="flex items-center justify-between p-3 bg-yellow-100 rounded-lg">
+                                        <span className="font-medium text-yellow-800">{b.category}</span>
+                                        <span className="text-sm text-yellow-700">
+                                            ₹{b.spent.toLocaleString("en-IN")} / ₹{Number(b.limit).toLocaleString("en-IN")} ({Math.round(b.spent / Number(b.limit) * 100)}%)
+                                        </span>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )
+                })()}
 
                 <div className="grid gap-6 md:grid-cols-2 mb-6">
                     <Card>

@@ -4,8 +4,10 @@ import { useSubscriptions } from "@/features/subscriptions/api/use-subscriptions
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
-import { Plus, TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart as PieChartIcon, Calendar } from "lucide-react"
+import { Plus, TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart as PieChartIcon, Calendar, Target } from "lucide-react"
 import { useMemo } from "react"
+import { useBudgetAnalytics } from "@/features/budgets/api/use-budget-analytics"
+import { cn } from "@/lib/utils"
 
 interface Subscription {
     id: string
@@ -140,6 +142,7 @@ function BarChart({ data }: { data: { label: string; value: number; color: strin
 
 export default function AnalyticsPage() {
     const { data, isLoading } = useSubscriptions()
+    const { data: budgetAnalyticsData } = useBudgetAnalytics(1)
 
     const subscriptions: Subscription[] = data?.data || []
     const activeSubscriptions = subscriptions.filter(sub => sub.status === "ACTIVE")
@@ -435,6 +438,46 @@ export default function AnalyticsPage() {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Budget Performance Section */}
+                {budgetAnalyticsData?.data && budgetAnalyticsData.data.length > 0 && (() => {
+                    const current = budgetAnalyticsData.data[budgetAnalyticsData.data.length - 1]
+                    if (!current || current.categories.length === 0) return null
+                    const withinBudget = current.categories.filter(c => c.spent <= c.limit).length
+                    const maxVal = Math.max(...current.categories.map(c => Math.max(c.limit, c.spent)), 1)
+                    return (
+                        <Card className="mt-6">
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Target className="h-5 w-5" />
+                                    Budget Performance
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                    <span className="font-medium text-foreground">{withinBudget}</span> of {current.categories.length} categories within budget this month
+                                </p>
+                                {current.categories.map((cat) => {
+                                    const overspent = cat.spent > cat.limit
+                                    return (
+                                        <div key={cat.category} className="space-y-1">
+                                            <div className="flex justify-between text-sm">
+                                                <span>{cat.category}</span>
+                                                <span className={cn(overspent ? "text-red-600 font-medium" : "text-muted-foreground")}>
+                                                    ₹{cat.spent.toLocaleString("en-IN")} / ₹{cat.limit.toLocaleString("en-IN")}
+                                                </span>
+                                            </div>
+                                            <div className="relative h-4 bg-gray-100 rounded-full overflow-hidden">
+                                                <div className="absolute inset-y-0 left-0 bg-gray-300 rounded-full" style={{ width: `${(cat.limit / maxVal) * 100}%` }} />
+                                                <div className={cn("absolute inset-y-0 left-0 rounded-full", overspent ? "bg-red-400" : "bg-blue-400")} style={{ width: `${(cat.spent / maxVal) * 100}%` }} />
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </CardContent>
+                        </Card>
+                    )
+                })()}
             </div>
         </div>
     )
