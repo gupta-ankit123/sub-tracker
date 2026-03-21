@@ -4,7 +4,7 @@ import { vi } from "vitest"
 process.env.ACCESS_TOKEN_SECRET = "test-access-secret-key-32chars!!"
 process.env.REFRESH_TOKEN_SECRET = "test-refresh-secret-key-32chars!"
 process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test"
-process.env.NODE_ENV = "test"
+// NODE_ENV is set by the test runner automatically
 process.env.EMAIL_FROM = "test@example.com"
 
 // ── Mock Prisma ──
