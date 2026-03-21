@@ -9,7 +9,7 @@ import { GoCheckCircle, GoCheckCircleFill, GoHome, GoHomeFill, GoReport, GoCredi
 const routes = [
     {
         label: "Dashboard",
-        href: "/",
+        href: "/dashboard",
         icon: GoHome,
         activeIcon: GoHomeFill
     },

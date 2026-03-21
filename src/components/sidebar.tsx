@@ -6,7 +6,7 @@ import { Navigation } from "./navigation"
 export const Sidebar = () => {
     return (
         <aside className="h-full bg-neutral-100 p-4 w-full">
-            <Link href="/">
+            <Link href="/dashboard">
                 <Image src="/logo.svg" alt="logo" width={164} height={48} />
             </Link>
 
