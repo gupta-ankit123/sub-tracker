@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
+import Image from "next/image"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -33,10 +34,11 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { SUBSCRIPTION_CATEGORIES } from "../schemas"
+import { POPULAR_SUBSCRIPTIONS, type PopularSubscription } from "../data/popular-subscriptions"
 import { useCreateSubscription } from "../api/use-create-subscription"
 import { useUpdateSubscription } from "../api/use-update-subscription"
 import { useCreateUtilityBill } from "../api/use-utility-bills"
-import { Zap, CreditCard } from "lucide-react"
+import { Zap, CreditCard, PenLine, ChevronLeft, Check } from "lucide-react"
 
 interface Subscription {
     id: string
@@ -63,10 +65,14 @@ interface SubscriptionFormDialogProps {
 }
 
 type FormType = "subscription" | "utility"
+type Step = "type" | "category" | "pick" | "details"
 
 export function SubscriptionFormDialog({ children, subscription, onSuccess }: SubscriptionFormDialogProps) {
     const [open, setOpen] = useState(false)
     const [formType, setFormType] = useState<FormType>("subscription")
+    const [step, setStep] = useState<Step>("type")
+    const [selectedCategory, setSelectedCategory] = useState("")
+    const [selectedPopular, setSelectedPopular] = useState<PopularSubscription | null>(null)
     const createMutation = useCreateSubscription()
     const createUtilityMutation = useCreateUtilityBill()
     const updateMutation = useUpdateSubscription()
@@ -83,7 +89,7 @@ export function SubscriptionFormDialog({ children, subscription, onSuccess }: Su
             amount: Number(subscription?.amount) || 0,
             currency: subscription?.currency || "INR",
             billingCycle: (subscription?.billingCycle) || "MONTHLY",
-            firstBillingDate: subscription?.nextBillingDate 
+            firstBillingDate: subscription?.nextBillingDate
                 ? new Date(subscription.nextBillingDate).toISOString().split('T')[0]
                 : new Date().toISOString().split('T')[0],
             autoRenew: subscription?.autoRenew ?? true,
@@ -93,9 +99,56 @@ export function SubscriptionFormDialog({ children, subscription, onSuccess }: Su
         },
     })
 
-    const { formState, watch } = form
+    const { watch } = form
     const formValues = watch()
     const isFormValid = formValues.name && formValues.category && formValues.amount > 0
+
+    const handleOpenChange = useCallback((isOpen: boolean) => {
+        setOpen(isOpen)
+        if (!isOpen) {
+            if (!isEdit) {
+                setStep("type")
+                setSelectedCategory("")
+                setSelectedPopular(null)
+                form.reset()
+            }
+        } else if (isEdit) {
+            setStep("details")
+            setSelectedCategory(subscription?.category || "")
+        }
+    }, [isEdit, subscription, form])
+
+    const handleCategorySelect = useCallback((category: string) => {
+        setSelectedCategory(category)
+        form.setValue("category", category)
+        const popularList = POPULAR_SUBSCRIPTIONS[category]
+        if (popularList && popularList.length > 0) {
+            setStep("pick")
+        } else {
+            setStep("details")
+        }
+    }, [form])
+
+    const handlePopularSelect = useCallback((sub: PopularSubscription) => {
+        setSelectedPopular(sub)
+        form.setValue("name", sub.name)
+        form.setValue("logoUrl", sub.logoUrl)
+        form.setValue("websiteUrl", sub.websiteUrl)
+        if (sub.defaultAmount > 0) {
+            form.setValue("amount", sub.defaultAmount)
+        }
+        form.setValue("billingCycle", sub.defaultCycle)
+        setStep("details")
+    }, [form])
+
+    const handleCustomEntry = useCallback(() => {
+        setSelectedPopular(null)
+        form.setValue("name", "")
+        form.setValue("logoUrl", "")
+        form.setValue("websiteUrl", "")
+        form.setValue("amount", 0)
+        setStep("details")
+    }, [form])
 
     const onSubmit = (values: any) => {
         const payload = {
@@ -114,8 +167,7 @@ export function SubscriptionFormDialog({ children, subscription, onSuccess }: Su
                 { json: payload },
                 {
                     onSuccess: () => {
-                        setOpen(false)
-                        form.reset()
+                        handleOpenChange(false)
                     },
                 }
             )
@@ -123,281 +175,425 @@ export function SubscriptionFormDialog({ children, subscription, onSuccess }: Su
     }
 
     const isPending = createMutation.isPending || updateMutation.isPending
+    const popularList = POPULAR_SUBSCRIPTIONS[selectedCategory] || []
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                 {children || <Button>Add Subscription</Button>}
             </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
-                {!isEdit && (
-                    <div className="flex gap-2 mb-4">
-                        <button
-                            type="button"
-                            onClick={() => setFormType("subscription")}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg border ${
-                                formType === "subscription" 
-                                    ? "bg-primary text-primary-foreground" 
-                                    : "bg-background hover:bg-accent"
-                            }`}
-                        >
-                            <CreditCard className="h-4 w-4" />
-                            Subscription
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setFormType("utility")}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg border ${
-                                formType === "utility" 
-                                    ? "bg-primary text-primary-foreground" 
-                                    : "bg-background hover:bg-accent"
-                            }`}
-                        >
-                            <Zap className="h-4 w-4" />
-                            Utility Bill
-                        </button>
-                    </div>
-                )}
-                <DialogHeader>
-                    <DialogTitle>
-                        {isEdit ? "Edit Subscription" : formType === "utility" ? "Add Utility Bill" : "Add New Subscription"}
-                    </DialogTitle>
-                    <DialogDescription>
-                        {isEdit 
-                            ? "Update your subscription details below." 
-                            : formType === "utility"
-                                ? "Add a utility bill to track your variable expenses."
-                                : "Add a new subscription to track your recurring payments."}
-                    </DialogDescription>
-                </DialogHeader>
-                {formType === "utility" && !isEdit ? (
-                    <UtilityBillForm 
-                        onSuccess={() => {
-                            setOpen(false)
-                            onSuccess?.()
-                        }} 
-                        onCancel={() => setOpen(false)}
-                    />
-                ) : (
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField
-                            control={form.control as any}
-                            name="name"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Name</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Netflix, Spotify..." {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control as any}
-                            name="category"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Category</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select category" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {SUBSCRIPTION_CATEGORIES.map((cat) => (
-                                                <SelectItem key={cat} value={cat}>
-                                                    {cat}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                                control={form.control as any}
-                                name="amount"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Amount</FormLabel>
-                                        <FormControl>
-                                            <Input 
-                                                type="number" 
-                                                step="0.01"
-                                                placeholder="0.00"
-                                                {...field}
-                                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                                value={field.value || ""}
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control as any}
-                                name="currency"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Currency</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="INR">INR</SelectItem>
-                                                <SelectItem value="USD">USD</SelectItem>
-                                                <SelectItem value="EUR">EUR</SelectItem>
-                                                <SelectItem value="GBP">GBP</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                {/* Step: Type selection (subscription vs utility) */}
+                {step === "type" && !isEdit && (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>What would you like to add?</DialogTitle>
+                            <DialogDescription>
+                                Choose the type of recurring payment to track.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex gap-3 mt-2">
+                            <button
+                                type="button"
+                                onClick={() => { setFormType("subscription"); setStep("category") }}
+                                className="flex-1 flex flex-col items-center gap-2 py-6 px-4 rounded-xl border-2 hover:border-primary hover:bg-primary/5 transition-all"
+                            >
+                                <CreditCard className="h-8 w-8 text-primary" />
+                                <span className="font-semibold">Subscription</span>
+                                <span className="text-xs text-muted-foreground text-center">Netflix, Spotify, etc.</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setFormType("utility"); setStep("details") }}
+                                className="flex-1 flex flex-col items-center gap-2 py-6 px-4 rounded-xl border-2 hover:border-primary hover:bg-primary/5 transition-all"
+                            >
+                                <Zap className="h-8 w-8 text-amber-500" />
+                                <span className="font-semibold">Utility Bill</span>
+                                <span className="text-xs text-muted-foreground text-center">Electricity, Water, etc.</span>
+                            </button>
                         </div>
+                    </>
+                )}
 
-                        <FormField
-                            control={form.control as any}
-                            name="billingCycle"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Billing Cycle</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="WEEKLY">Weekly</SelectItem>
-                                            <SelectItem value="MONTHLY">Monthly</SelectItem>
-                                            <SelectItem value="QUARTERLY">Quarterly</SelectItem>
-                                            <SelectItem value="SEMI_ANNUAL">Semi-Annual</SelectItem>
-                                            <SelectItem value="ANNUAL">Annual</SelectItem>
-                                            <SelectItem value="ONE_TIME">One Time</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                {/* Step: Category selection */}
+                {step === "category" && !isEdit && (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>
+                                <button type="button" onClick={() => setStep("type")} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mr-2">
+                                    <ChevronLeft className="h-4 w-4" />
+                                </button>
+                                Select Category
+                            </DialogTitle>
+                            <DialogDescription>
+                                Pick a category to see popular subscriptions.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                            {SUBSCRIPTION_CATEGORIES.map((cat) => {
+                                const count = POPULAR_SUBSCRIPTIONS[cat]?.length || 0
+                                return (
+                                    <button
+                                        key={cat}
+                                        type="button"
+                                        onClick={() => handleCategorySelect(cat)}
+                                        className="flex items-center justify-between gap-2 py-3 px-4 rounded-lg border hover:border-primary hover:bg-primary/5 transition-all text-left"
+                                    >
+                                        <span className="text-sm font-medium">{cat}</span>
+                                        {count > 0 && (
+                                            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{count}</span>
+                                        )}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </>
+                )}
 
-                        <FormField
-                            control={form.control as any}
-                            name="usageFrequency"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>How often do you use this?</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="DAILY">Daily</SelectItem>
-                                            <SelectItem value="WEEKLY">Weekly</SelectItem>
-                                            <SelectItem value="MONTHLY">Monthly</SelectItem>
-                                            <SelectItem value="RARELY">Rarely</SelectItem>
-                                            <SelectItem value="NEVER">Never</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                {/* Step: Pick popular subscription */}
+                {step === "pick" && !isEdit && (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>
+                                <button type="button" onClick={() => setStep("category")} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mr-2">
+                                    <ChevronLeft className="h-4 w-4" />
+                                </button>
+                                {selectedCategory}
+                            </DialogTitle>
+                            <DialogDescription>
+                                Select a service or add a custom one.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                            {popularList.map((sub) => (
+                                <button
+                                    key={sub.name}
+                                    type="button"
+                                    onClick={() => handlePopularSelect(sub)}
+                                    className="flex items-center gap-3 py-3 px-3 rounded-lg border hover:border-primary hover:bg-primary/5 transition-all text-left"
+                                >
+                                    <div
+                                        className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 overflow-hidden"
+                                        style={{ backgroundColor: sub.color + "15" }}
+                                    >
+                                        <Image
+                                            src={sub.logoUrl}
+                                            alt={sub.name}
+                                            width={22}
+                                            height={22}
+                                            className="object-contain"
+                                            unoptimized
+                                        />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium truncate">{sub.name}</p>
+                                        {sub.defaultAmount > 0 && (
+                                            <p className="text-xs text-muted-foreground">
+                                                ₹{sub.defaultAmount}/{sub.defaultCycle === "ANNUAL" ? "yr" : "mo"}
+                                            </p>
+                                        )}
+                                    </div>
+                                </button>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={handleCustomEntry}
+                                className="flex items-center gap-3 py-3 px-3 rounded-lg border border-dashed hover:border-primary hover:bg-primary/5 transition-all text-left"
+                            >
+                                <div className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 bg-muted">
+                                    <PenLine className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium">Custom</p>
+                                    <p className="text-xs text-muted-foreground">Enter manually</p>
+                                </div>
+                            </button>
+                        </div>
+                    </>
+                )}
 
-                        <FormField
-                            control={form.control as any}
-                            name="firstBillingDate"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>First Billing Date</FormLabel>
-                                    <FormControl>
-                                        <Input type="date" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                {/* Step: Details form */}
+                {step === "details" && (
+                    <>
+                        {!isEdit && formType === "utility" ? (
+                            <>
+                                <DialogHeader>
+                                    <DialogTitle>
+                                        <button type="button" onClick={() => setStep("type")} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mr-2">
+                                            <ChevronLeft className="h-4 w-4" />
+                                        </button>
+                                        Add Utility Bill
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                        Add a utility bill to track your variable expenses.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <UtilityBillForm
+                                    onSuccess={() => {
+                                        handleOpenChange(false)
+                                        onSuccess?.()
+                                    }}
+                                    onCancel={() => handleOpenChange(false)}
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <DialogHeader>
+                                    <DialogTitle>
+                                        {!isEdit && (
+                                            <button type="button" onClick={() => selectedPopular ? setStep("pick") : setStep("category")} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mr-2">
+                                                <ChevronLeft className="h-4 w-4" />
+                                            </button>
+                                        )}
+                                        {isEdit ? "Edit Subscription" : selectedPopular ? (
+                                            <span className="inline-flex items-center gap-2">
+                                                <Image src={selectedPopular.logoUrl} alt="" width={20} height={20} className="inline" unoptimized />
+                                                {selectedPopular.name}
+                                            </span>
+                                        ) : "Add Subscription"}
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                        {isEdit
+                                            ? "Update your subscription details below."
+                                            : selectedPopular
+                                                ? "Confirm the details and adjust if needed."
+                                                : "Fill in your subscription details."}
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <Form {...form}>
+                                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                                        {/* Show name field — pre-filled if popular was selected */}
+                                        <FormField
+                                            control={form.control as any}
+                                            name="name"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Name</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="Netflix, Spotify..." {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
 
-                        <FormField
-                            control={form.control as any}
-                            name="logoUrl"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Logo URL (optional)</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="https://..." {...field} value={field.value || ""} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                                        {/* Category — show as dropdown for edit or custom, read-only badge for popular pick */}
+                                        {isEdit ? (
+                                            <FormField
+                                                control={form.control as any}
+                                                name="category"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Category</FormLabel>
+                                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                            <FormControl>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Select category" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                {SUBSCRIPTION_CATEGORIES.map((cat) => (
+                                                                    <SelectItem key={cat} value={cat}>
+                                                                        {cat}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        ) : (
+                                            <div>
+                                                <p className="text-sm font-medium mb-1.5">Category</p>
+                                                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-2 rounded-md">
+                                                    <Check className="h-4 w-4 text-green-500" />
+                                                    {selectedCategory}
+                                                </div>
+                                            </div>
+                                        )}
 
-                        <FormField
-                            control={form.control as any}
-                            name="websiteUrl"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Website URL (optional)</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="https://..." {...field} value={field.value || ""} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <FormField
+                                                control={form.control as any}
+                                                name="amount"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Amount</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                placeholder="0.00"
+                                                                {...field}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                                value={field.value || ""}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
 
-                        <FormField
-                            control={form.control as any}
-                            name="description"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Description (optional)</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Brief description..." {...field} value={field.value || ""} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                                            <FormField
+                                                control={form.control as any}
+                                                name="currency"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Currency</FormLabel>
+                                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                            <FormControl>
+                                                                <SelectTrigger>
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                <SelectItem value="INR">INR</SelectItem>
+                                                                <SelectItem value="USD">USD</SelectItem>
+                                                                <SelectItem value="EUR">EUR</SelectItem>
+                                                                <SelectItem value="GBP">GBP</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
 
-                        <FormField
-                            control={form.control as any}
-                            name="notes"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Notes (optional)</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Additional notes..." {...field} value={field.value || ""} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                                        <FormField
+                                            control={form.control as any}
+                                            name="billingCycle"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Billing Cycle</FormLabel>
+                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="WEEKLY">Weekly</SelectItem>
+                                                            <SelectItem value="MONTHLY">Monthly</SelectItem>
+                                                            <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                                                            <SelectItem value="SEMI_ANNUAL">Semi-Annual</SelectItem>
+                                                            <SelectItem value="ANNUAL">Annual</SelectItem>
+                                                            <SelectItem value="ONE_TIME">One Time</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
 
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="submit" disabled={isPending || !isFormValid}>
-                                {isPending ? "Saving..." : isEdit ? "Update" : "Create"}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
+                                        <FormField
+                                            control={form.control as any}
+                                            name="usageFrequency"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>How often do you use this?</FormLabel>
+                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="DAILY">Daily</SelectItem>
+                                                            <SelectItem value="WEEKLY">Weekly</SelectItem>
+                                                            <SelectItem value="MONTHLY">Monthly</SelectItem>
+                                                            <SelectItem value="RARELY">Rarely</SelectItem>
+                                                            <SelectItem value="NEVER">Never</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={form.control as any}
+                                            name="firstBillingDate"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>First Billing Date</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="date" {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={form.control as any}
+                                            name="logoUrl"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Logo URL (optional)</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="https://..." {...field} value={field.value || ""} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={form.control as any}
+                                            name="websiteUrl"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Website URL (optional)</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="https://..." {...field} value={field.value || ""} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={form.control as any}
+                                            name="description"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Description (optional)</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="Brief description..." {...field} value={field.value || ""} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <FormField
+                                            control={form.control as any}
+                                            name="notes"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Notes (optional)</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="Additional notes..." {...field} value={field.value || ""} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        <DialogFooter>
+                                            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+                                                Cancel
+                                            </Button>
+                                            <Button type="submit" disabled={isPending || !isFormValid}>
+                                                {isPending ? "Saving..." : isEdit ? "Update" : "Create"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </form>
+                                </Form>
+                            </>
+                        )}
+                    </>
                 )}
             </DialogContent>
         </Dialog>

@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { getCurrent } from "@/features/auth/action";
 import { Navbar } from "@/components/navbar";
 import { Sidebar } from "@/components/sidebar";
 
@@ -5,7 +7,12 @@ interface DashboardLayoutProps {
     children: React.ReactNode;
 };
 
-const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+const DashboardLayout = async ({ children }: DashboardLayoutProps) => {
+    const user = await getCurrent();
+    if (!user) {
+        redirect("/sign-in");
+    }
+
     return (
         <div className="min-h-screen">
             <div className="flex w-full h-full">
