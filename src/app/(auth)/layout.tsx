@@ -1,147 +1,34 @@
 "use client"
 
-import { usePathname } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
-import { motion } from "framer-motion";
-
-import { Button } from "@/components/ui/button";
-
 interface AuthLayoutProps {
     children: React.ReactNode
 }
 
 const AuthLayout = ({ children }: AuthLayoutProps) => {
-    const pathname = usePathname();
-    const isSignIn = pathname === "/sign-in"
-
     return (
-        <main className="min-h-screen bg-[#0B0F1A] relative overflow-hidden">
-            {/* Animated gradient mesh background orbs */}
+        <main className="min-h-screen bg-[#0f131e] relative overflow-hidden flex items-center justify-center p-6">
+            {/* Grain overlay */}
             <div
-                className="absolute w-[700px] h-[700px] rounded-full bg-[#00D4AA]/[0.05] blur-[150px] pointer-events-none"
+                className="fixed inset-0 opacity-[0.03] pointer-events-none z-[100]"
                 style={{
-                    top: "-10%",
-                    right: "-5%",
-                    animation: "orbDrift1 25s ease-in-out infinite",
-                }}
-            />
-            <div
-                className="absolute w-[600px] h-[600px] rounded-full bg-[#3B82F6]/[0.05] blur-[140px] pointer-events-none"
-                style={{
-                    bottom: "-15%",
-                    left: "-8%",
-                    animation: "orbDrift2 22s ease-in-out infinite",
-                }}
-            />
-            <div
-                className="absolute w-[500px] h-[500px] rounded-full bg-[#8B5CF6]/[0.04] blur-[130px] pointer-events-none"
-                style={{
-                    top: "30%",
-                    left: "40%",
-                    animation: "orbDrift3 28s ease-in-out infinite",
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`,
                 }}
             />
 
-            {/* Subtle grid pattern overlay */}
-            <div
-                className="absolute inset-0 pointer-events-none opacity-[0.03]"
-                style={{
-                    backgroundImage:
-                        "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
-                    backgroundSize: "60px 60px",
-                }}
-            />
+            {/* Ambient orbs */}
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#46f1c5]/20 rounded-full blur-[80px] opacity-40" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#0566d9]/10 rounded-full blur-[80px] opacity-40" />
+            <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-[#dfd0ff]/10 rounded-full blur-[80px] opacity-40" />
 
-            {/* Grain texture overlay */}
-            <div className="grain absolute inset-0 pointer-events-none" />
-
-            {/* Orb animation keyframes */}
-            <style jsx>{`
-                @keyframes orbDrift1 {
-                    0%, 100% {
-                        transform: translate(0, 0) scale(1);
-                    }
-                    25% {
-                        transform: translate(-40px, 60px) scale(1.05);
-                    }
-                    50% {
-                        transform: translate(30px, -40px) scale(0.95);
-                    }
-                    75% {
-                        transform: translate(-20px, -30px) scale(1.02);
-                    }
-                }
-                @keyframes orbDrift2 {
-                    0%, 100% {
-                        transform: translate(0, 0) scale(1);
-                    }
-                    25% {
-                        transform: translate(50px, -30px) scale(1.03);
-                    }
-                    50% {
-                        transform: translate(-40px, 50px) scale(0.97);
-                    }
-                    75% {
-                        transform: translate(30px, 20px) scale(1.04);
-                    }
-                }
-                @keyframes orbDrift3 {
-                    0%, 100% {
-                        transform: translate(0, 0) scale(1);
-                    }
-                    25% {
-                        transform: translate(-60px, -40px) scale(1.06);
-                    }
-                    50% {
-                        transform: translate(50px, 30px) scale(0.94);
-                    }
-                    75% {
-                        transform: translate(20px, -50px) scale(1.01);
-                    }
-                }
-            `}</style>
-
-            <div className="relative min-h-screen flex flex-col p-4 sm:p-6">
-                {/* Sticky glassmorphic navbar */}
-                <motion.nav
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ type: "spring", stiffness: 120, damping: 20, delay: 0.1 }}
-                    className="sticky top-0 z-50 flex justify-between items-center px-4 sm:px-6 py-3 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.06]"
-                >
-                    <Link href="/">
-                        <Image
-                            src="/logo.svg"
-                            alt="SubTracker"
-                            width={140}
-                            height={40}
-                            className="brightness-0 invert opacity-90"
-                        />
-                    </Link>
-                    <Button
-                        asChild
-                        variant="outline"
-                        className="border-white/[0.1] bg-white/[0.04] text-[#C0CAD8] hover:text-white hover:bg-white/[0.08] hover:border-white/[0.15] backdrop-blur-sm transition-all duration-300"
-                    >
-                        <Link href={isSignIn ? "/sign-up" : "/sign-in"}>
-                            {isSignIn ? "Sign Up" : "Login"}
-                        </Link>
-                    </Button>
-                </motion.nav>
-
-                {/* Centered children with entrance animation */}
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.96 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ type: "spring", stiffness: 100, damping: 20, delay: 0.25 }}
-                    className="flex flex-1 flex-col items-center justify-center"
-                >
-                    {children}
-                </motion.div>
+            {/* Content */}
+            <div className="relative z-10 w-full max-w-[440px]">
+                {children}
             </div>
+
+            {/* Bottom gradient line */}
+            <div className="fixed bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#46f1c5]/30 to-transparent" />
         </main>
-    );
+    )
 }
 
-export default AuthLayout;
+export default AuthLayout

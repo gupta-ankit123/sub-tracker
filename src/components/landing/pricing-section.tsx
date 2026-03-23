@@ -1,96 +1,51 @@
-"use client"
-
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Check, Sparkles } from "lucide-react"
-import { motion } from "framer-motion"
+import { Check } from "lucide-react"
 
 const features = [
-    "Unlimited subscriptions",
-    "Utility bill tracking",
-    "Smart budgeting",
-    "Safe-to-spend calculator",
-    "Unused subscription detection",
-    "Analytics dashboard",
-    "CSV & PDF export",
-    "Email reminders",
-    "Payment tracking",
+    "Unlimited Subscriptions",
+    "Utility Bill Tracking",
+    "Monthly Insights Reports",
+    "Smart Push Notifications",
+    "Budget Management",
+    "CSV & PDF Export",
 ]
 
 export function PricingSection() {
     return (
-        <section id="pricing" className="relative py-20 md:py-28">
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+        <section id="pricing" className="py-24 px-6 relative">
+            <div className="max-w-4xl mx-auto text-center">
+                <h2 className="text-3xl md:text-4xl font-[family-name:var(--font-plus-jakarta)] font-bold mb-12">
+                    One Simple Plan
+                </h2>
 
-            <div className="relative mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-100px" }}
-                    transition={{ duration: 0.6 }}
-                    className="text-center mb-14"
-                >
-                    <span className="inline-block text-xs font-medium tracking-widest uppercase text-[#00D4AA] mb-4">
-                        Pricing
-                    </span>
-                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 font-[family-name:var(--font-plus-jakarta)]">
-                        Simple, Transparent Pricing
-                    </h2>
-                    <p className="text-base md:text-lg text-[#7A8BA8]">
-                        No hidden fees. No premium tiers. Just free.
-                    </p>
-                </motion.div>
+                <div className="bg-[rgba(49,52,65,0.4)] backdrop-blur-[16px] p-10 md:p-16 rounded-3xl border border-white/10 relative overflow-hidden">
+                    {/* Accent orb */}
+                    <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#46f1c5]/10 rounded-full blur-3xl" />
 
-                <motion.div
-                    initial={{ opacity: 0, y: 40, scale: 0.97 }}
-                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                    viewport={{ once: true, margin: "-80px" }}
-                    transition={{ duration: 0.6, delay: 0.1 }}
-                    className="max-w-md mx-auto"
-                >
-                    <div className="relative glass-card rounded-2xl p-8 gradient-border">
-                        {/* Badge */}
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                            <span className="inline-flex items-center gap-1.5 px-4 py-1 rounded-full text-xs font-semibold bg-[#00D4AA] text-[#0B0F1A] shadow-lg shadow-[#00D4AA]/25">
-                                <Sparkles className="h-3 w-3" />
-                                Most Popular
-                            </span>
-                        </div>
-
-                        <div className="text-center mb-8 pt-4">
-                            <h3 className="text-xl font-semibold text-white mb-4 font-[family-name:var(--font-plus-jakarta)]">
-                                Free Forever
-                            </h3>
-                            <div className="flex items-baseline justify-center gap-1">
-                                <span className="text-5xl md:text-6xl font-bold text-white font-[family-name:var(--font-plus-jakarta)]">
-                                    ₹0
-                                </span>
-                                <span className="text-[#7A8BA8] text-sm">/ month</span>
-                            </div>
-                        </div>
-
-                        <div className="h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent mb-6" />
-
-                        <ul className="space-y-3.5 mb-8">
-                            {features.map((feature) => (
-                                <li key={feature} className="flex items-center gap-3">
-                                    <div className="w-5 h-5 rounded-full bg-[#00D4AA]/10 flex items-center justify-center shrink-0">
-                                        <Check className="h-3 w-3 text-[#00D4AA]" />
-                                    </div>
-                                    <span className="text-sm text-[#C0CAD8]">{feature}</span>
-                                </li>
-                            ))}
-                        </ul>
-
-                        <Button
-                            className="w-full bg-[#00D4AA] hover:bg-[#00BF99] text-[#0B0F1A] font-semibold shadow-lg shadow-[#00D4AA]/20 hover:shadow-[#00D4AA]/40 transition-all duration-300"
-                            size="lg"
-                            asChild
-                        >
-                            <Link href="/sign-up">Get Started Free</Link>
-                        </Button>
+                    <h3 className="text-2xl font-bold mb-2 relative z-10">Free Forever</h3>
+                    <div className="flex items-center justify-center gap-2 mb-8 relative z-10">
+                        <span className="text-5xl font-black font-[family-name:var(--font-plus-jakarta)] text-[#46f1c5]">
+                            ₹0
+                        </span>
+                        <span className="text-[#bacac2]">/mo</span>
                     </div>
-                </motion.div>
+
+                    <ul className="text-left space-y-5 max-w-xs mx-auto mb-12 relative z-10">
+                        {features.map((feature) => (
+                            <li key={feature} className="flex items-center gap-3">
+                                <Check className="w-5 h-5 text-[#46f1c5] shrink-0" />
+                                <span>{feature}</span>
+                            </li>
+                        ))}
+                    </ul>
+
+                    <Link
+                        href="/sign-up"
+                        className="relative z-10 inline-block w-full max-w-sm bg-[#00d4aa] text-[#005643] py-4 rounded-xl font-bold text-lg hover:shadow-lg transition-all text-center"
+                    >
+                        Start Your Journey
+                    </Link>
+                </div>
             </div>
         </section>
     )

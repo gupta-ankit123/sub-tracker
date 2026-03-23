@@ -5,10 +5,8 @@ import { useSearchParams } from "next/navigation"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { motion } from "framer-motion"
 import { Mail } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import {
     Form,
     FormControl,
@@ -16,7 +14,6 @@ import {
     FormItem,
     FormMessage,
 } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { useVerifyOtp } from "../api/use-verify-otp"
 
@@ -36,13 +33,13 @@ export const VerifyOtpCard = () => {
         resolver: zodResolver(verifyOtpSchema),
         defaultValues: {
             email: email || "",
-            otp: ""
+            otp: "",
         },
     })
 
     useEffect(() => {
         if (countdown <= 0) return
-        const timer = setInterval(() => setCountdown(c => c - 1), 1000)
+        const timer = setInterval(() => setCountdown((c) => c - 1), 1000)
         return () => clearInterval(timer)
     }, [countdown])
 
@@ -52,139 +49,129 @@ export const VerifyOtpCard = () => {
 
     if (!email) {
         return (
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="w-full max-w-[440px] mx-auto"
-            >
-                <div className="gradient-border rounded-2xl p-[1px]">
-                    <div className="glass-card rounded-2xl p-8 sm:p-10">
-                        <div className="text-center">
-                            <div className="w-14 h-14 rounded-xl bg-white/[0.06] flex items-center justify-center mx-auto mb-4">
-                                <Mail className="h-7 w-7 text-[#7A8BA8]" />
-                            </div>
-                            <h1 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)] text-white">
-                                Verify Email
-                            </h1>
-                            <p className="text-sm text-[#7A8BA8] mt-2 mb-6">
-                                No email provided. Please register first.
-                            </p>
-                            <Link href="/sign-up">
-                                <Button variant="primary" className="h-12 px-8 rounded-lg font-semibold">
-                                    Go to Sign Up
-                                </Button>
-                            </Link>
-                        </div>
+            <>
+                <div className="flex flex-col items-center mb-10">
+                    <div className="w-16 h-16 bg-[#1b1f2b] rounded-2xl flex items-center justify-center mb-6 shadow-2xl">
+                        <Mail className="w-8 h-8 text-[#bacac2]" />
                     </div>
+                    <h1 className="font-[family-name:var(--font-plus-jakarta)] text-3xl font-extrabold tracking-tight text-[#dfe2f2]">
+                        Verify Email
+                    </h1>
+                    <p className="text-[#bacac2] mt-2 text-center">
+                        No email provided. Please register first.
+                    </p>
                 </div>
-            </motion.div>
+                <div className="bg-[rgba(49,52,65,0.4)] backdrop-blur-xl rounded-xl p-8 border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.4)] text-center">
+                    <Link href="/sign-up">
+                        <button className="bg-[#00d4aa] text-[#005643] font-[family-name:var(--font-plus-jakarta)] font-bold py-4 px-8 rounded-xl hover:shadow-[0_0_20px_rgba(70,241,197,0.3)] hover:scale-[1.01] active:scale-[0.98] transition-all duration-200">
+                            Go to Sign Up
+                        </button>
+                    </Link>
+                </div>
+            </>
         )
     }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="w-full max-w-[440px] mx-auto"
-        >
-            <div className="gradient-border rounded-2xl p-[1px]">
-                <div className="glass-card rounded-2xl p-8 sm:p-10">
-                    {/* Header */}
-                    <div className="text-center mb-8">
-                        <div className="w-14 h-14 rounded-xl bg-[#00D4AA]/10 flex items-center justify-center mx-auto mb-4">
-                            <Mail className="h-7 w-7 text-[#00D4AA]" />
-                        </div>
-                        <h1 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)] text-white">
-                            Verify Your Email
-                        </h1>
-                        <p className="text-sm text-[#7A8BA8] mt-1">
-                            We sent a 6-digit code to{" "}
-                            <span className="text-[#00D4AA] font-medium">{email}</span>
-                        </p>
-                    </div>
+        <>
+            {/* Brand Logo */}
+            <div className="flex flex-col items-center mb-10">
+                <div className="w-16 h-16 bg-[#1b1f2b] rounded-2xl flex items-center justify-center mb-6 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-[#46f1c5]/10 group-hover:bg-[#46f1c5]/20 transition-colors" />
+                    <Mail className="w-8 h-8 text-[#46f1c5] relative z-10" />
+                </div>
+                <h1 className="font-[family-name:var(--font-plus-jakarta)] text-3xl font-extrabold tracking-tight text-[#dfe2f2]">
+                    Verify Your Email
+                </h1>
+                <p className="text-[#bacac2] mt-2 text-center">
+                    We sent a 6-digit code to{" "}
+                    <span className="text-[#46f1c5] font-medium">{email}</span>
+                </p>
+            </div>
 
-                    {/* Form */}
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                            <FormField
-                                name="email"
-                                control={form.control}
-                                render={({ field }) => (
-                                    <FormItem className="hidden">
-                                        <FormControl>
-                                            <Input
-                                                {...field}
-                                                type="email"
-                                                hidden
-                                            />
-                                        </FormControl>
-                                    </FormItem>
-                                )}
-                            />
+            {/* Glassmorphic Card */}
+            <div className="bg-[rgba(49,52,65,0.4)] backdrop-blur-xl rounded-xl p-8 border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        {/* Hidden email field */}
+                        <FormField
+                            name="email"
+                            control={form.control}
+                            render={({ field }) => (
+                                <FormItem className="hidden">
+                                    <FormControl>
+                                        <input {...field} type="email" hidden />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
 
-                            <FormField
-                                name="otp"
-                                control={form.control}
-                                render={({ field }) => (
-                                    <FormItem>
+                        {/* OTP Input */}
+                        <FormField
+                            name="otp"
+                            control={form.control}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-medium text-[#bacac2] px-1 text-center">
+                                            Verification Code
+                                        </label>
                                         <FormControl>
-                                            <Input
+                                            <input
                                                 {...field}
                                                 type="text"
                                                 maxLength={6}
                                                 placeholder="000000"
-                                                className="h-14 bg-white/[0.04] border-white/[0.08] text-white text-center text-3xl tracking-[0.5em] font-mono placeholder:text-[#4A5568] placeholder:text-base placeholder:tracking-normal focus-visible:border-[#00D4AA]/50 focus-visible:ring-[#00D4AA]/20 rounded-lg"
+                                                className="w-full bg-[#0a0e19] border-none text-[#dfe2f2] rounded-xl px-4 py-4 text-center text-3xl tracking-[0.5em] font-mono focus:ring-2 focus:ring-[#46f1c5]/40 placeholder:text-[#bacac2]/20 placeholder:text-base placeholder:tracking-normal transition-all outline-none"
                                             />
                                         </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                                    </div>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
-                            <Button
-                                variant="primary"
-                                className="w-full h-12 text-base font-semibold rounded-lg"
-                                disabled={isPending}
-                                size="lg"
-                            >
-                                {isPending ? "Verifying..." : "Verify Email"}
-                            </Button>
-                        </form>
-                    </Form>
+                        {/* Submit Button */}
+                        <button
+                            type="submit"
+                            disabled={isPending}
+                            className="w-full bg-[#00d4aa] text-[#005643] font-[family-name:var(--font-plus-jakarta)] font-bold py-4 rounded-xl hover:shadow-[0_0_20px_rgba(70,241,197,0.3)] hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isPending ? "Verifying..." : "Verify Email"}
+                        </button>
+                    </form>
+                </Form>
 
-                    {/* Divider */}
-                    <div className="relative my-6">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-white/[0.06]" />
-                        </div>
-                        <div className="relative flex justify-center text-xs">
-                            <span className="bg-[#111827] px-3 text-[#4A5568]">didn&apos;t receive it?</span>
-                        </div>
-                    </div>
-
-                    {/* Resend */}
-                    <Button
-                        variant="outline"
-                        className="w-full h-11 rounded-lg"
-                        disabled={countdown > 0}
-                        onClick={() => {
-                            setCountdown(60)
-                        }}
-                    >
-                        {countdown > 0 ? `Resend in ${countdown}s` : "Resend Code"}
-                    </Button>
-
-                    {/* Footer */}
-                    <p className="text-center text-sm text-[#7A8BA8] mt-6">
-                        Wrong email?{" "}
-                        <Link href="/sign-up" className="text-[#00D4AA] hover:text-[#00BF99] font-medium transition-colors">
-                            Sign Up again
-                        </Link>
-                    </p>
+                {/* Divider */}
+                <div className="relative py-4 flex items-center my-2">
+                    <div className="flex-grow border-t border-white/5" />
+                    <span className="flex-shrink mx-4 text-xs font-medium text-[#bacac2]/50 uppercase tracking-widest">
+                        didn&apos;t receive it?
+                    </span>
+                    <div className="flex-grow border-t border-white/5" />
                 </div>
+
+                {/* Resend Button */}
+                <button
+                    type="button"
+                    disabled={countdown > 0}
+                    onClick={() => setCountdown(60)}
+                    className="w-full bg-white/5 hover:bg-white/10 text-[#dfe2f2] py-3 rounded-xl transition-all border border-white/5 font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {countdown > 0 ? `Resend in ${countdown}s` : "Resend Code"}
+                </button>
             </div>
-        </motion.div>
+
+            {/* Footer Link */}
+            <p className="mt-8 text-center text-[#bacac2] font-medium text-sm">
+                Wrong email?{" "}
+                <Link
+                    href="/sign-up"
+                    className="text-[#46f1c5] font-bold hover:underline underline-offset-4 ml-1 transition-all"
+                >
+                    Sign Up again
+                </Link>
+            </p>
+        </>
     )
 }

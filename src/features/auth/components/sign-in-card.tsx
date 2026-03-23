@@ -2,12 +2,10 @@
 import { z } from "zod"
 import { FcGoogle } from "react-icons/fc"
 import { FaGithub } from "react-icons/fa"
-import { useForm } from "react-hook-form";
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { motion } from "framer-motion"
 import { Shield } from "lucide-react"
 
-import { Button } from "@/components/ui/button";
 import {
     Form,
     FormControl,
@@ -15,11 +13,9 @@ import {
     FormItem,
     FormMessage,
 } from "@/components/ui/form"
-import { Input } from "@/components/ui/input";
-import Link from "next/link";
-import { loginSchema } from "../schemas";
-import { useLogin } from "../api/use-login";
-
+import Link from "next/link"
+import { loginSchema } from "../schemas"
+import { useLogin } from "../api/use-login"
 
 export const SignInCard = () => {
     const { mutate, isPending } = useLogin()
@@ -27,132 +23,138 @@ export const SignInCard = () => {
         resolver: zodResolver(loginSchema),
         defaultValues: {
             email: "",
-            password: ""
+            password: "",
         },
-    });
+    })
 
     const onSubmit = (values: z.infer<typeof loginSchema>) => {
         mutate({ json: values })
     }
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="w-full max-w-[440px] mx-auto"
-        >
-            <div className="gradient-border rounded-2xl p-[1px]">
-                <div className="glass-card rounded-2xl p-8 sm:p-10">
-                    {/* Header */}
-                    <div className="mb-8">
-                        <div className="w-12 h-12 rounded-xl bg-[#00D4AA]/10 flex items-center justify-center mx-auto mb-4">
-                            <Shield className="w-6 h-6 text-[#00D4AA]" />
-                        </div>
-                        <h1 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)] text-white text-center">
-                            Welcome Back
-                        </h1>
-                        <p className="text-sm text-[#7A8BA8] text-center mt-1">
-                            Sign in to manage your subscriptions
-                        </p>
-                    </div>
 
-                    {/* Form */}
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                            <FormField
-                                name="email"
-                                control={form.control}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <label className="text-sm font-medium text-[#C0CAD8] mb-1.5 block">
+    return (
+        <>
+            {/* Brand Logo */}
+            <div className="flex flex-col items-center mb-10">
+                <div className="w-16 h-16 bg-[#1b1f2b] rounded-2xl flex items-center justify-center mb-6 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-[#46f1c5]/10 group-hover:bg-[#46f1c5]/20 transition-colors" />
+                    <Shield className="w-8 h-8 text-[#46f1c5] relative z-10" />
+                </div>
+                <h1 className="font-[family-name:var(--font-plus-jakarta)] text-3xl font-extrabold tracking-tight text-[#dfe2f2]">
+                    Welcome Back
+                </h1>
+                <p className="text-[#bacac2] mt-2 text-center">
+                    Sign in to manage your subscriptions
+                </p>
+            </div>
+
+            {/* Glassmorphic Card */}
+            <div className="bg-[rgba(49,52,65,0.4)] backdrop-blur-xl rounded-xl p-8 border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        {/* Email */}
+                        <FormField
+                            name="email"
+                            control={form.control}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-medium text-[#bacac2] px-1">
                                             Email
                                         </label>
                                         <FormControl>
-                                            <Input
+                                            <input
                                                 {...field}
                                                 type="email"
-                                                placeholder="Enter email address"
-                                                className="h-12 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-[#4A5568] focus:border-[#00D4AA]/50 focus:ring-[#00D4AA]/20 rounded-lg"
+                                                placeholder="name@company.com"
+                                                className="w-full bg-[#0a0e19] border-none text-[#dfe2f2] rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-[#46f1c5]/40 placeholder:text-[#bacac2]/30 transition-all outline-none"
                                             />
                                         </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                                    </div>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
-                            <FormField
-                                name="password"
-                                control={form.control}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <label className="text-sm font-medium text-[#C0CAD8] mb-1.5 block">
-                                            Password
-                                        </label>
+                        {/* Password */}
+                        <FormField
+                            name="password"
+                            control={form.control}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center px-1">
+                                            <label className="block text-sm font-medium text-[#bacac2]">
+                                                Password
+                                            </label>
+                                            <span className="text-xs font-semibold text-[#46f1c5] hover:text-[#55fcd0] transition-colors cursor-pointer">
+                                                Forgot Password?
+                                            </span>
+                                        </div>
                                         <FormControl>
-                                            <Input
+                                            <input
                                                 {...field}
                                                 type="password"
-                                                placeholder="Enter your password"
-                                                className="h-12 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-[#4A5568] focus:border-[#00D4AA]/50 focus:ring-[#00D4AA]/20 rounded-lg"
+                                                placeholder="••••••••"
+                                                className="w-full bg-[#0a0e19] border-none text-[#dfe2f2] rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-[#46f1c5]/40 placeholder:text-[#bacac2]/30 transition-all outline-none"
                                             />
                                         </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <Button
-                                variant="primary"
-                                className="w-full h-12 text-base font-semibold rounded-lg"
-                                disabled={isPending}
-                                size="lg"
-                            >
-                                Sign In
-                            </Button>
-                        </form>
-                    </Form>
+                                    </div>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
-                    {/* Divider */}
-                    <div className="relative my-6">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-white/[0.06]" />
-                        </div>
-                        <div className="relative flex justify-center text-xs">
-                            <span className="bg-[#111827] px-3 text-[#4A5568]">or continue with</span>
-                        </div>
-                    </div>
-
-                    {/* Social Buttons */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <Button
+                        {/* Submit Button */}
+                        <button
+                            type="submit"
                             disabled={isPending}
-                            variant="outline"
-                            size="lg"
-                            className="h-12 rounded-lg"
+                            className="w-full bg-[#00d4aa] text-[#005643] font-[family-name:var(--font-plus-jakarta)] font-bold py-4 rounded-xl hover:shadow-[0_0_20px_rgba(70,241,197,0.3)] hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <FcGoogle className="mr-2 size-5" />
-                            Google
-                        </Button>
+                            {isPending ? "Signing In..." : "Sign In"}
+                        </button>
+                    </form>
+                </Form>
 
-                        <Button
-                            disabled={isPending}
-                            variant="outline"
-                            size="lg"
-                            className="h-12 rounded-lg"
-                        >
-                            <FaGithub className="mr-2 size-5" />
-                            GitHub
-                        </Button>
-                    </div>
+                {/* Divider */}
+                <div className="relative py-4 flex items-center my-2">
+                    <div className="flex-grow border-t border-white/5" />
+                    <span className="flex-shrink mx-4 text-xs font-medium text-[#bacac2]/50 uppercase tracking-widest">
+                        or continue with
+                    </span>
+                    <div className="flex-grow border-t border-white/5" />
+                </div>
 
-                    {/* Footer */}
-                    <p className="text-center text-sm text-[#7A8BA8] mt-6">
-                        Don&apos;t have an account?{" "}
-                        <Link href="/sign-up" className="text-[#00D4AA] hover:text-[#00BF99] font-medium">
-                            Sign Up
-                        </Link>
-                    </p>
+                {/* Social Buttons */}
+                <div className="grid grid-cols-2 gap-4">
+                    <button
+                        type="button"
+                        disabled={isPending}
+                        className="flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 text-[#dfe2f2] py-3 rounded-xl transition-all border border-white/5 disabled:opacity-50"
+                    >
+                        <FcGoogle className="w-5 h-5" />
+                        <span className="text-sm font-semibold">Google</span>
+                    </button>
+                    <button
+                        type="button"
+                        disabled={isPending}
+                        className="flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 text-[#dfe2f2] py-3 rounded-xl transition-all border border-white/5 disabled:opacity-50"
+                    >
+                        <FaGithub className="w-5 h-5" />
+                        <span className="text-sm font-semibold">GitHub</span>
+                    </button>
                 </div>
             </div>
-        </motion.div>
-    );
+
+            {/* Footer Link */}
+            <p className="mt-8 text-center text-[#bacac2] font-medium text-sm">
+                Don&apos;t have an account?{" "}
+                <Link
+                    href="/sign-up"
+                    className="text-[#46f1c5] font-bold hover:underline underline-offset-4 ml-1 transition-all"
+                >
+                    Sign Up
+                </Link>
+            </p>
+        </>
+    )
 }
