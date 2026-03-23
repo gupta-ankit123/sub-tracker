@@ -1,5 +1,9 @@
 "use client"
 
+import { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { ChevronDown } from "lucide-react"
+
 const faqs = [
     {
         question: "Is SubTracker really free?",
@@ -27,28 +31,94 @@ const faqs = [
     },
 ]
 
-export function FaqSection() {
+function FaqItem({ question, answer, isOpen, onClick }: {
+    question: string
+    answer: string
+    isOpen: boolean
+    onClick: () => void
+}) {
     return (
-        <section id="faq" className="py-20 md:py-28 bg-gray-50/50">
-            <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
-                <div className="text-center mb-14">
-                    <h2 className="text-3xl md:text-4xl font-bold mb-4">Frequently Asked Questions</h2>
-                    <p className="text-lg text-muted-foreground">Got questions? We've got answers.</p>
-                </div>
-                <div className="max-w-2xl mx-auto space-y-4">
-                    {faqs.map((faq) => (
-                        <details
+        <div
+            className={`rounded-xl border transition-all duration-300 ${
+                isOpen
+                    ? "border-[#00D4AA]/20 bg-white/[0.03]"
+                    : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.1]"
+            }`}
+        >
+            <button
+                onClick={onClick}
+                className="flex w-full cursor-pointer items-center justify-between p-5 text-left"
+            >
+                <span className="font-medium text-sm md:text-base text-white pr-4">
+                    {question}
+                </span>
+                <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-[#7A8BA8] transition-transform duration-300 ${
+                        isOpen ? "rotate-180 text-[#00D4AA]" : ""
+                    }`}
+                />
+            </button>
+            <AnimatePresence initial={false}>
+                {isOpen && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                        className="overflow-hidden"
+                    >
+                        <div className="px-5 pb-5 text-sm text-[#7A8BA8] leading-relaxed">
+                            {answer}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    )
+}
+
+export function FaqSection() {
+    const [openIndex, setOpenIndex] = useState<number | null>(null)
+
+    return (
+        <section id="faq" className="relative py-20 md:py-28">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+
+            <div className="relative mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
+                <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.6 }}
+                    className="text-center mb-14"
+                >
+                    <span className="inline-block text-xs font-medium tracking-widest uppercase text-[#00D4AA] mb-4">
+                        FAQ
+                    </span>
+                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 font-[family-name:var(--font-plus-jakarta)]">
+                        Frequently Asked Questions
+                    </h2>
+                    <p className="text-base md:text-lg text-[#7A8BA8]">
+                        Got questions? We&apos;ve got answers.
+                    </p>
+                </motion.div>
+
+                <div className="max-w-2xl mx-auto space-y-3">
+                    {faqs.map((faq, index) => (
+                        <motion.div
                             key={faq.question}
-                            className="group rounded-lg border bg-white p-0 [&_summary::-webkit-details-marker]:hidden"
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, margin: "-60px" }}
+                            transition={{ duration: 0.4, delay: index * 0.06 }}
                         >
-                            <summary className="flex cursor-pointer items-center justify-between p-5 font-medium">
-                                <span>{faq.question}</span>
-                                <span className="ml-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-45 text-xl leading-none">+</span>
-                            </summary>
-                            <div className="px-5 pb-5 text-sm text-muted-foreground">
-                                {faq.answer}
-                            </div>
-                        </details>
+                            <FaqItem
+                                question={faq.question}
+                                answer={faq.answer}
+                                isOpen={openIndex === index}
+                                onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                            />
+                        </motion.div>
                     ))}
                 </div>
             </div>

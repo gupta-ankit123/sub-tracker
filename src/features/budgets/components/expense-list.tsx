@@ -20,6 +20,7 @@ export function ExpenseList({ budgetId }: ExpenseListProps) {
     if (expenses.length === 0) return <div className="text-sm text-muted-foreground p-2">No expenses yet.</div>
 
     return (
+        <div className="overflow-x-auto -mx-2">
         <Table>
             <TableHeader>
                 <TableRow>
@@ -64,5 +65,6 @@ export function ExpenseList({ budgetId }: ExpenseListProps) {
                 })}
             </TableBody>
         </Table>
+        </div>
     )
 }

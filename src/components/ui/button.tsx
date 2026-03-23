@@ -5,21 +5,21 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:bg-neutral-100 disabled:from-neutral-100 disabled:to-neutral-100 disabled:text-neutral-300 border border-neutral-200 shadow-sm [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-transparent shadow-sm [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         primary:
-          "bg-gradient-to-b from-blue-600 to-blue-700 text-primary-foreground hover:from-blue-700 hover:to-blue-700",
+          "bg-[#00D4AA] text-[#0B0F1A] hover:bg-[#00BF99] border-[#00D4AA]/50 shadow-[#00D4AA]/20",
         destructive:
-          "bg-gradient-to-b from-amber-600 to-amber-700 text-destructive-foreground hover:from-amber-700 hover:to-amber-700",
+          "bg-[#EF4444] text-white hover:bg-[#DC2626] border-[#EF4444]/50",
         outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+          "border border-white/[0.1] bg-white/[0.04] shadow-sm hover:bg-white/[0.08] hover:text-white text-[#C0CAD8]",
         secondary:
-          "bg-white text-black hover:bg-neutral-100",
-        ghost: "border-transparent shadow-none hover:bg-accent hover:text-accent-foreground",
-        muted: "bg-neutral-200 text-neutral-600 hover:bg-neutral-200/80",
-        teritary: "bg-blue-100 text-blue-600 border-transparent hover:bg-blue-200 shadow-none"
+          "bg-white/[0.06] text-[#C0CAD8] hover:bg-white/[0.1] border-white/[0.08]",
+        ghost: "border-transparent shadow-none hover:bg-white/[0.06] hover:text-white text-[#C0CAD8]",
+        muted: "bg-white/[0.06] text-[#7A8BA8] hover:bg-white/[0.1] border-transparent shadow-none",
+        teritary: "bg-[#00D4AA]/10 text-[#00D4AA] border-transparent hover:bg-[#00D4AA]/20 shadow-none"
       },
       size: {
         default: "h-10 px-4 py-2",

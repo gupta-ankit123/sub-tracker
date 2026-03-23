@@ -18,15 +18,18 @@ export const MobileSidebar = () => {
     return (
         <Sheet modal={false} open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
-                <Button variant="secondary" className="lg:hidden">
-                    <MenuIcon className="size-4 text-neutral-500" />
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="lg:hidden size-9 text-[#7A8BA8] hover:text-white hover:bg-white/[0.06]"
+                >
+                    <MenuIcon className="size-5" />
                 </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0">
+            <SheetContent side="left" className="p-0 w-[260px] bg-[#0D1220] border-r border-white/[0.06]">
                 <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
                 <Sidebar />
             </SheetContent>
-
         </Sheet>
     )
 }

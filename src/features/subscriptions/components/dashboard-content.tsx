@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
 import { UtilityBillFormDialog } from "@/features/subscriptions/components/utility-bill-form-dialog"
-import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check, Download, FileText, Zap, ShieldCheck } from "lucide-react"
+import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check, Download, FileText, Zap, ShieldCheck, CreditCard, BarChart3, AlertTriangle, RefreshCw, PlusCircle, MoreVertical } from "lucide-react"
 import { useMemo } from "react"
 import Link from "next/link"
 import { exportToCSV, exportToPDF } from "@/features/subscriptions/api/use-export"
@@ -52,16 +52,16 @@ function calculateMonthlyAmount(amount: string | number, billingCycle: string): 
 }
 
 function getCategoryColor(index: number): string {
-    const colors = ["#8884d8", "#82ca9d", "#ffc658", "#ff7300", "#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#a4de6c", "#d0ed57"]
+    const colors = ["#46f1c5", "#adc6ff", "#dfd0ff", "#64748b", "#00D4AA", "#00C49F", "#FFBB28", "#FF8042", "#a4de6c", "#d0ed57"]
     return colors[index % colors.length]
 }
 
-function SimplePieChart({ data }: { data: { name: string; value: number; color: string }[] }) {
-    const total = data.reduce((sum, item) => sum + item.value, 0)
+function SimplePieChart({ data, total }: { data: { name: string; value: number; color: string }[]; total: number }) {
+    const dataTotal = data.reduce((sum, item) => sum + item.value, 0)
     let cumulativePercent = 0
 
     const slices = data.map((item) => {
-        const percent = total > 0 ? (item.value / total) * 100 : 0
+        const percent = dataTotal > 0 ? (item.value / dataTotal) * 100 : 0
         const startAngle = cumulativePercent * 3.6
         cumulativePercent += percent
         const endAngle = cumulativePercent * 3.6
@@ -69,31 +69,37 @@ function SimplePieChart({ data }: { data: { name: string; value: number; color: 
         const startRad = (startAngle - 90) * (Math.PI / 180)
         const endRad = (endAngle - 90) * (Math.PI / 180)
 
-        const x1 = 50 + 40 * Math.cos(startRad)
-        const y1 = 50 + 40 * Math.sin(startRad)
-        const x2 = 50 + 40 * Math.cos(endRad)
-        const y2 = 50 + 40 * Math.sin(endRad)
+        const outerR = 48
+        const innerR = 30
+
+        const x1o = 50 + outerR * Math.cos(startRad)
+        const y1o = 50 + outerR * Math.sin(startRad)
+        const x2o = 50 + outerR * Math.cos(endRad)
+        const y2o = 50 + outerR * Math.sin(endRad)
+
+        const x1i = 50 + innerR * Math.cos(endRad)
+        const y1i = 50 + innerR * Math.sin(endRad)
+        const x2i = 50 + innerR * Math.cos(startRad)
+        const y2i = 50 + innerR * Math.sin(startRad)
 
         const largeArcFlag = percent > 50 ? 1 : 0
 
-        return { path: `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`, color: item.color }
+        const path = `M ${x1o} ${y1o} A ${outerR} ${outerR} 0 ${largeArcFlag} 1 ${x2o} ${y2o} L ${x1i} ${y1i} A ${innerR} ${innerR} 0 ${largeArcFlag} 0 ${x2i} ${y2i} Z`
+
+        return { path, color: item.color }
     })
 
-    if (total === 0) return <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">No data</div>
+    if (dataTotal === 0) return <div className="flex items-center justify-center h-64 text-[#bacac2] text-sm">No data</div>
 
     return (
-        <div className="flex items-center gap-4">
-            <svg viewBox="0 0 100 100" className="w-24 h-24">
+        <div className="relative w-64 h-64 flex items-center justify-center">
+            <svg viewBox="0 0 100 100" className="w-full h-full">
                 {slices.map((slice, i) => (<path key={i} d={slice.path} fill={slice.color} />))}
-                <circle cx="50" cy="50" r="25" fill="white" />
+                <circle cx="50" cy="50" r="29" fill="#0a0e19" />
             </svg>
-            <div className="flex flex-col gap-1">
-                {data.slice(0, 4).map((item, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-muted-foreground truncate max-w-[80px]">{item.name}</span>
-                    </div>
-                ))}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <p className="text-[#bacac2] text-xs font-bold uppercase tracking-widest">Total</p>
+                <p className="text-2xl font-black text-[#dfe2f2] font-[family-name:var(--font-plus-jakarta)]">{total.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</p>
             </div>
         </div>
     )
@@ -147,7 +153,7 @@ export function DashboardContent({ userName }: { userName: string }) {
             return daysSinceUsed > (thresholdDays[sub.usageFrequency as keyof typeof thresholdDays] || 45)
         })
 
-        const potentialSavings = unusedSubscriptions.reduce((sum, sub) => 
+        const potentialSavings = unusedSubscriptions.reduce((sum, sub) =>
             sum + calculateMonthlyAmount(Number(sub.amount), sub.billingCycle), 0)
 
         const autoRenewSubscriptions = activeSubscriptions.filter(sub => sub.autoRenew)
@@ -174,7 +180,12 @@ export function DashboardContent({ userName }: { userName: string }) {
                 value: totalCategoryAmount > 0 ? (value / totalCategoryAmount) * 100 : 0,
                 color: getCategoryColor(index)
             })),
-            upcomingSubs: activeSubscriptions.slice(0, 3),
+            categoryBreakdownRaw: sortedCategories.map(([name, value], index) => ({
+                name,
+                value,
+                color: getCategoryColor(index)
+            })),
+            upcomingSubs: activeSubscriptions.slice(0, 4),
             paidCount: paidThisMonth.length,
             pendingCount: pendingThisMonth.length,
             overdueCount: overdueThisMonth.length,
@@ -189,44 +200,59 @@ export function DashboardContent({ userName }: { userName: string }) {
 
     if (isLoading) {
         return (
-            <div className="h-full bg-neutral-500/5 p-4 md:p-8 overflow-auto">
-                <div className="max-w-4xl mx-auto space-y-6">
+            <div className="pt-4 pb-12 px-6 md:px-10 max-w-7xl mx-auto">
+                {/* Hero skeleton */}
+                <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
-                        <div className="h-9 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                        <div className="h-5 w-80 mt-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                        <div className="h-9 w-64 bg-[#1b1f2b] rounded-xl animate-pulse" />
+                        <div className="h-5 w-80 mt-2 bg-[#1b1f2b] rounded-xl animate-pulse" />
                     </div>
+                    <div className="h-12 w-32 bg-[#1b1f2b] rounded-xl animate-pulse" />
+                </div>
 
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="p-6 bg-white rounded-lg border">
-                                <div className="h-4 w-24 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                                <div className="h-8 w-32 mt-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                {/* Stat cards skeleton */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                    {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="glass-card rounded-xl p-6">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="h-10 w-10 bg-white/[0.06] rounded-lg animate-pulse" />
+                                <div className="h-6 w-20 bg-white/[0.06] rounded-full animate-pulse" />
                             </div>
-                        ))}
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <div className="p-6 bg-white rounded-lg border">
-                            <div className="h-6 w-40 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                            <div className="h-40 mt-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            <div className="h-4 w-32 bg-white/[0.06] rounded animate-pulse mb-2" />
+                            <div className="h-9 w-24 bg-white/[0.06] rounded animate-pulse" />
                         </div>
-                        <div className="p-6 bg-white rounded-lg border">
-                            <div className="h-6 w-40 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                            <div className="space-y-3 mt-4">
-                                {[1, 2, 3, 4].map((i) => (
-                                    <div key={i} className="h-12 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                    ))}
+                </div>
 
-                    <div className="p-6 bg-white rounded-lg border">
-                        <div className="h-6 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                        <div className="space-y-3 mt-4">
-                            {[1, 2, 3].map((i) => (
-                                <div key={i} className="h-16 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                {/* Main grid skeleton */}
+                <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 mb-10">
+                    <div className="lg:col-span-6 glass-card rounded-xl p-6">
+                        <div className="h-6 w-40 bg-white/[0.06] rounded animate-pulse mb-6" />
+                        <div className="space-y-4">
+                            {[1, 2, 3, 4].map((i) => (
+                                <div key={i} className="h-16 bg-white/[0.06] rounded-xl animate-pulse" />
                             ))}
                         </div>
+                    </div>
+                    <div className="lg:col-span-4 glass-card rounded-xl p-6">
+                        <div className="h-6 w-32 bg-white/[0.06] rounded animate-pulse mb-8" />
+                        <div className="h-64 w-64 mx-auto bg-white/[0.06] rounded-full animate-pulse" />
+                    </div>
+                </div>
+
+                {/* Recent activity skeleton */}
+                <div className="glass-card rounded-xl p-8">
+                    <div className="h-6 w-40 bg-white/[0.06] rounded animate-pulse mb-8" />
+                    <div className="space-y-6">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="flex items-center gap-6">
+                                <div className="h-10 w-10 bg-white/[0.06] rounded-full animate-pulse shrink-0" />
+                                <div className="flex-1 space-y-2">
+                                    <div className="h-4 w-48 bg-white/[0.06] rounded animate-pulse" />
+                                    <div className="h-3 w-64 bg-white/[0.06] rounded animate-pulse" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -237,355 +263,263 @@ export function DashboardContent({ userName }: { userName: string }) {
 
     if (subscriptions.length === 0) {
         return (
-            <div className="h-full bg-neutral-500/5 p-4 md:p-8 overflow-auto">
-                <div className="max-w-4xl mx-auto">
-                    <div className="mb-8">
-                        <h1 className="text-3xl font-bold">Dashboard</h1>
-                        <p className="text-muted-foreground mt-1">Welcome back, {userName}! Start tracking your subscriptions.</p>
+            <div className="pt-4 pb-12 px-6 md:px-10 max-w-7xl mx-auto">
+                {/* Hero Section */}
+                <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div>
+                        <h2 className="text-3xl font-extrabold font-[family-name:var(--font-plus-jakarta)] text-[#dfe2f2] tracking-tight mb-2">Subscription Overview</h2>
+                        <p className="text-[#bacac2] font-medium">Welcome back, {userName}. Start tracking your subscriptions.</p>
                     </div>
-                    <div className="flex flex-col items-center justify-center p-12 bg-white rounded-lg shadow-sm border">
-                        <Sparkles className="h-12 w-12 text-primary mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">Welcome to Subscription Tracker!</h3>
-                        <p className="text-muted-foreground text-center mb-6">Add your first subscription to start tracking your spending.</p>
-                        <SubscriptionFormDialog>
-                            <Button><Plus className="mr-2 h-4 w-4" />Add Your First Subscription</Button>
-                        </SubscriptionFormDialog>
+                </div>
+
+                {/* Empty State Card */}
+                <div className="glass-card rounded-xl p-12 flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 rounded-2xl bg-[#00D4AA]/10 flex items-center justify-center mb-5">
+                        <Sparkles className="h-8 w-8 text-[#46f1c5]" />
                     </div>
+                    <h3 className="text-lg font-bold mb-2 text-[#dfe2f2] font-[family-name:var(--font-plus-jakarta)]">Welcome to Subscription Tracker!</h3>
+                    <p className="text-[#bacac2] text-center mb-6">Add your first subscription to start tracking your spending.</p>
+                    <SubscriptionFormDialog>
+                        <button className="px-6 py-3 bg-[#00D4AA] text-[#005643] font-bold rounded-xl flex items-center gap-2 hover:shadow-[0_10px_30px_rgba(0,212,170,0.3)] hover:scale-[1.02] transition-all active:scale-95">
+                            <Plus className="h-5 w-5" />
+                            Add Your First Subscription
+                        </button>
+                    </SubscriptionFormDialog>
                 </div>
             </div>
         )
     }
 
+    // Determine upcoming bills with status
+    const upcomingBills = insights?.upcomingSubs?.map((sub: Subscription) => {
+        const dueDate = new Date(sub.nextBillingDate)
+        const now = new Date()
+        const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+        let status: "paid" | "pending" | "overdue" = "pending"
+        if (sub.paymentStatus === "SUCCESS") status = "paid"
+        else if (sub.paymentStatus === "OVERDUE" || sub.paymentStatus === "FAILED" || daysUntilDue < 0) status = "overdue"
+
+        return { ...sub, dueDate, daysUntilDue, status }
+    }) || []
+
+    // Recent activity from subscriptions
+    const recentActivity = subscriptions.slice(0, 3).map((sub, i) => {
+        if (sub.paymentStatus === "SUCCESS" && sub.lastPaidDate) {
+            return {
+                icon: <RefreshCw className="h-4 w-4 text-[#46f1c5]" />,
+                borderColor: "border-[#46f1c5]/40",
+                shadowColor: "shadow-[0_0_10px_rgba(70,241,197,0.2)]",
+                title: `Payment successful for ${sub.name}`,
+                detail: `${new Date(sub.lastPaidDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}${sub.paymentMethod ? ` via ${sub.paymentMethod}` : ""}`,
+            }
+        }
+        if (sub.paymentStatus === "OVERDUE" || sub.paymentStatus === "FAILED") {
+            return {
+                icon: <AlertTriangle className="h-4 w-4 text-[#ffb4ab]" />,
+                borderColor: "border-[#ffb4ab]/40",
+                shadowColor: "",
+                title: `Payment overdue for ${sub.name}`,
+                detail: `Due ${new Date(sub.nextBillingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+            }
+        }
+        return {
+            icon: <PlusCircle className="h-4 w-4 text-[#dfd0ff]" />,
+            borderColor: "border-[#dfd0ff]/40",
+            shadowColor: "",
+            title: `Subscription active: ${sub.name}`,
+            detail: `${sub.category} - ${new Date(sub.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+        }
+    })
+
     return (
-        <div className="h-full bg-neutral-500/5 p-4 md:p-8 overflow-auto">
-            <div className="max-w-5xl mx-auto">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold">Dashboard</h1>
-                    <p className="text-muted-foreground mt-1">Welcome back, {userName}! Here's your spending overview.</p>
+        <div className="pt-4 pb-12 px-6 md:px-10 max-w-7xl mx-auto">
+            {/* Hero Section */}
+            <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div>
+                    <h2 className="text-3xl font-extrabold font-[family-name:var(--font-plus-jakarta)] text-[#dfe2f2] tracking-tight mb-2">Subscription Overview</h2>
+                    <p className="text-[#bacac2] font-medium">Welcome back, {userName}. Your financial observatory is active.</p>
                 </div>
+                <SubscriptionFormDialog>
+                    <button className="px-6 py-3 bg-[#00D4AA] text-[#005643] font-bold rounded-xl flex items-center gap-2 hover:shadow-[0_10px_30px_rgba(0,212,170,0.3)] hover:scale-[1.02] transition-all active:scale-95">
+                        <Plus className="h-5 w-5" />
+                        Add New
+                    </button>
+                </SubscriptionFormDialog>
+            </div>
 
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-                    <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-blue-100">Monthly Spending</CardTitle></CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold">₹{insights?.monthlyTotal.toFixed(2) || 0}</div>
-                            <p className="text-xs text-blue-100">per month</p>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-purple-100">Annual Spending</CardTitle></CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold">₹{insights?.annualTotal.toFixed(2) || 0}</div>
-                            <p className="text-xs text-purple-100">per year</p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
-                            <Target className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold">{insights?.activeCount || 0}</div>
-                            <p className="text-xs text-muted-foreground">of {insights?.totalSubscriptions || 0} total</p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Auto-Renew</CardTitle>
-                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold">{insights?.autoRenewCount || 0}</div>
-                            <p className="text-xs text-muted-foreground">subscriptions</p>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <Card className="mb-6">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <DollarSign className="h-5 w-5" />
-                            This Month's Bills
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="text-center p-4 bg-green-50 rounded-lg">
-                                <div className="flex items-center justify-center mb-2">
-                                    <CheckCircle className="h-6 w-6 text-green-600" />
-                                </div>
-                                <p className="text-2xl font-bold text-green-600">₹{insights?.paidAmount.toFixed(0) || 0}</p>
-                                <p className="text-sm text-green-700">Paid ({insights?.paidCount || 0})</p>
-                            </div>
-                            <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                                <div className="flex items-center justify-center mb-2">
-                                    <Clock className="h-6 w-6 text-yellow-600" />
-                                </div>
-                                <p className="text-2xl font-bold text-yellow-600">₹{insights?.pendingAmount.toFixed(0) || 0}</p>
-                                <p className="text-sm text-yellow-700">Pending ({insights?.pendingCount || 0})</p>
-                            </div>
-                            <div className="text-center p-4 bg-red-50 rounded-lg">
-                                <div className="flex items-center justify-center mb-2">
-                                    <AlertCircle className="h-6 w-6 text-red-600" />
-                                </div>
-                                <p className="text-2xl font-bold text-red-600">₹{insights?.overdueAmount.toFixed(0) || 0}</p>
-                                <p className="text-sm text-red-700">Overdue ({insights?.overdueCount || 0})</p>
-                            </div>
+            {/* 4 Stat Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                {/* Active Subscriptions */}
+                <div className="glass-card rounded-xl p-6 relative overflow-hidden group">
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#46f1c5]/10 rounded-full blur-3xl group-hover:bg-[#46f1c5]/20 transition-colors" />
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="p-2 bg-[#46f1c5]/10 rounded-lg text-[#46f1c5]">
+                            <CreditCard className="h-6 w-6" />
                         </div>
-                        <div className="mt-4 pt-4 border-t">
-                            <div className="flex justify-between items-center">
-                                <span className="font-medium">Total:</span>
-                                <span className="text-xl font-bold">₹{insights?.totalMonthlyAmount.toFixed(0) || 0}</span>
-                            </div>
+                        <span className="text-xs font-bold text-[#46f1c5] px-2 py-1 bg-[#46f1c5]/10 rounded-full">{insights?.activeCount || 0} active</span>
+                    </div>
+                    <h3 className="text-[#bacac2] text-sm font-medium mb-1">Active Subscriptions</h3>
+                    <p className="text-3xl font-extrabold font-[family-name:var(--font-plus-jakarta)] text-[#dfe2f2]">{insights?.activeCount || 0}</p>
+                </div>
+
+                {/* Monthly Spending */}
+                <div className="glass-card rounded-xl p-6 relative overflow-hidden group">
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#0566d9]/10 rounded-full blur-3xl group-hover:bg-[#0566d9]/20 transition-colors" />
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="p-2 bg-[#0566d9]/10 rounded-lg text-[#adc6ff]">
+                            <DollarSign className="h-6 w-6" />
                         </div>
-                    </CardContent>
-                </Card>
-
-                {insights && insights.unusedCount > 0 && (
-                    <Card className="mb-6 border-orange-200 bg-orange-50/50">
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2 text-orange-700">
-                                <AlertCircle className="h-5 w-5" />
-                                Unused Subscriptions - Potential Savings
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="p-3 bg-orange-100 rounded-lg mb-4">
-                                <p className="text-orange-800 font-medium">
-                                    You could save <span className="text-xl font-bold">₹{insights.potentialSavings.toFixed(0)}/month</span> ({insights.potentialSavings * 12}/year) by cancelling unused subscriptions
-                                </p>
-                            </div>
-                            <div className="space-y-3">
-                                {insights.unusedSubscriptions?.map((sub: Subscription) => (
-                                    <div key={sub.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                                        <div className="flex items-center gap-3">
-                                            {sub.logoUrl ? <img src={sub.logoUrl} alt={sub.name} className="w-8 h-8 rounded" /> :
-                                                <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-sm font-bold">{sub.name.charAt(0)}</div>}
-                                            <div>
-                                                <p className="font-medium text-sm">{sub.name}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {sub.lastUsedDate 
-                                                        ? `Last used ${Math.floor((Date.now() - new Date(sub.lastUsedDate).getTime()) / (1000 * 60 * 60 * 24))} days ago`
-                                                        : 'Never used'}
-                                                    {' • '}
-                                                    {sub.usageFrequency === 'NEVER' ? 'Marked as never used' : sub.usageFrequency.toLowerCase()}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-bold">₹{calculateMonthlyAmount(Number(sub.amount), sub.billingCycle).toFixed(0)}/mo</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Safe-to-Spend Widget */}
-                {stsData?.data && (
-                    <Card className={cn(
-                        "mb-6",
-                        stsData.data.monthlyIncome === 0 ? "border-dashed" :
-                        stsData.data.safeToSpend / (stsData.data.monthlyIncome || 1) > 0.2 ? "bg-green-50/50 border-green-200" :
-                        stsData.data.safeToSpend / (stsData.data.monthlyIncome || 1) > 0.1 ? "bg-yellow-50/50 border-yellow-200" :
-                        "bg-red-50/50 border-red-200"
-                    )}>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <ShieldCheck className="h-5 w-5" />
-                                Safe to Spend
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {stsData.data.monthlyIncome === 0 ? (
-                                <div className="flex items-center justify-between">
-                                    <p className="text-sm text-muted-foreground">Set your income to track safe-to-spend</p>
-                                    <IncomeDialog>
-                                        <Button size="sm">Set Income</Button>
-                                    </IncomeDialog>
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <div className={cn(
-                                            "text-3xl font-bold",
-                                            stsData.data.safeToSpend / stsData.data.monthlyIncome > 0.2 ? "text-green-600" :
-                                            stsData.data.safeToSpend / stsData.data.monthlyIncome > 0.1 ? "text-yellow-600" : "text-red-600"
-                                        )}>
-                                            {stsData.data.safeToSpend >= 0 ? "₹" : "-₹"}{Math.abs(stsData.data.safeToSpend).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-                                        </div>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            ₹{stsData.data.monthlyIncome.toLocaleString("en-IN")} income - ₹{stsData.data.fixedBills.toLocaleString("en-IN", { maximumFractionDigits: 0 })} bills - ₹{stsData.data.budgetAllocations.toLocaleString("en-IN")} budgets
-                                        </p>
-                                    </div>
-                                    <Button variant="outline" size="sm" asChild>
-                                        <Link href="/budgets">Manage Budgets</Link>
-                                    </Button>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Budget Alerts */}
-                {budgetsData?.data && budgetsData.data.length > 0 && (() => {
-                    const overBudget = budgetsData.data.filter(b => Number(b.limit) > 0 && b.spent / Number(b.limit) > 0.9)
-                    const warningBudget = budgetsData.data.filter(b => Number(b.limit) > 0 && b.spent / Number(b.limit) > 0.7 && b.spent / Number(b.limit) <= 0.9)
-                    if (overBudget.length === 0 && warningBudget.length === 0) return null
-                    return (
-                        <Card className="mb-6 border-red-200 bg-red-50/50">
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2 text-red-700">
-                                    <AlertCircle className="h-5 w-5" />
-                                    Budget Alerts
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                {overBudget.map(b => (
-                                    <div key={b.id} className="flex items-center justify-between p-3 bg-red-100 rounded-lg">
-                                        <span className="font-medium text-red-800">{b.category}</span>
-                                        <span className="text-sm text-red-700">
-                                            ₹{b.spent.toLocaleString("en-IN")} / ₹{Number(b.limit).toLocaleString("en-IN")} ({Math.round(b.spent / Number(b.limit) * 100)}%)
-                                        </span>
-                                    </div>
-                                ))}
-                                {warningBudget.map(b => (
-                                    <div key={b.id} className="flex items-center justify-between p-3 bg-yellow-100 rounded-lg">
-                                        <span className="font-medium text-yellow-800">{b.category}</span>
-                                        <span className="text-sm text-yellow-700">
-                                            ₹{b.spent.toLocaleString("en-IN")} / ₹{Number(b.limit).toLocaleString("en-IN")} ({Math.round(b.spent / Number(b.limit) * 100)}%)
-                                        </span>
-                                    </div>
-                                ))}
-                            </CardContent>
-                        </Card>
-                    )
-                })()}
-
-                <div className="grid gap-6 md:grid-cols-2 mb-6">
-                    <Card>
-                        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Lightbulb className="h-5 w-5 text-yellow-500" />Insights</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                                <div className="flex items-start gap-3">
-                                    <DollarSign className="h-5 w-5 text-blue-500 mt-0.5" />
-                                    <div>
-                                        <p className="font-medium text-sm">Annual Spending</p>
-                                        <p className="text-sm text-muted-foreground">You spend <span className="font-bold text-blue-600">₹{insights?.annualTotal.toFixed(0)}</span> per year on subscriptions</p>
-                                    </div>
-                                </div>
-                            </div>
-                            {insights?.topCategory && (
-                                <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
-                                    <div className="flex items-start gap-3">
-                                        <TrendingUp className="h-5 w-5 text-purple-500 mt-0.5" />
-                                        <div>
-                                            <p className="font-medium text-sm">Top Category</p>
-                                            <p className="text-sm text-muted-foreground"><span className="font-bold text-purple-600">{insights.topCategoryPercent}%</span> of your spending goes to <span className="font-bold">{insights.topCategory}</span></p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            {insights && insights.unusedCount > 0 && (
-                                <div className="p-3 bg-orange-50 rounded-lg border border-orange-100">
-                                    <div className="flex items-start gap-3">
-                                        <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5" />
-                                        <div>
-                                            <p className="font-medium text-sm">Unused Subscriptions</p>
-                                            <p className="text-sm text-muted-foreground">You have <span className="font-bold text-orange-600">{insights.unusedCount}</span> subscription{insights.unusedCount > 1 ? 's' : ''} that might be unused</p>
-                                            <p className="text-sm text-orange-700 font-medium mt-1">Save ₹{insights.potentialSavings.toFixed(0)}/month by cancelling</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            <div className="p-3 bg-green-50 rounded-lg border border-green-100">
-                                <div className="flex items-start gap-3">
-                                    <Wallet className="h-5 w-5 text-green-500 mt-0.5" />
-                                    <div>
-                                        <p className="font-medium text-sm">Daily Cost</p>
-                                        <p className="text-sm text-muted-foreground">Your subscriptions cost <span className="font-bold text-green-600">₹{((insights?.monthlyTotal || 0) / 30).toFixed(2)}</span> per day</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Target className="h-5 w-5" />Spending by Category</CardTitle></CardHeader>
-                        <CardContent><SimplePieChart data={insights?.categoryBreakdown || []} /></CardContent>
-                    </Card>
+                        <span className="text-xs font-bold text-[#adc6ff] px-2 py-1 bg-[#0566d9]/10 rounded-full">per month</span>
+                    </div>
+                    <h3 className="text-[#bacac2] text-sm font-medium mb-1">Monthly Spending</h3>
+                    <p className="text-3xl font-extrabold font-[family-name:var(--font-plus-jakarta)] text-[#dfe2f2]">{(insights?.monthlyTotal || 0).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</p>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 mb-6">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <CardTitle className="text-lg">Upcoming This Week</CardTitle>
-                            <Button variant="outline" size="sm" asChild><Link href="/upcoming">View All</Link></Button>
-                        </CardHeader>
-                        <CardContent>
-                            {insights?.upcomingSubs?.map((sub: Subscription) => (
-                                <div key={sub.id} className="flex items-center justify-between py-2">
-                                    <div className="flex items-center gap-3">
-                                        {sub.logoUrl ? <img src={sub.logoUrl} alt={sub.name} className="w-8 h-8 rounded" /> :
-                                            <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-sm font-bold">{sub.name.charAt(0)}</div>}
-                                        <div>
-                                            <p className="font-medium text-sm">{sub.name}</p>
-                                            <p className="text-xs text-muted-foreground">{new Date(sub.nextBillingDate).toLocaleDateString()}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="font-medium">₹{Number(sub.amount).toFixed(2)}</p>
-                                        <p className="text-xs text-green-600">₹{(calculateMonthlyAmount(Number(sub.amount), sub.billingCycle) * 12).toFixed(0)}/yr</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader><CardTitle className="text-lg">Quick Actions</CardTitle></CardHeader>
-                        <CardContent className="space-y-2">
-                            <SubscriptionFormDialog>
-                                <Button className="w-full justify-start" variant="outline"><Plus className="mr-2 h-4 w-4" />Add New Subscription</Button>
-                            </SubscriptionFormDialog>
-                            <UtilityBillFormDialog>
-                                <Button className="w-full justify-start" variant="outline"><Zap className="mr-2 h-4 w-4" />Add Utility Bill</Button>
-                            </UtilityBillFormDialog>
-                            <Button className="w-full justify-start" variant="outline" asChild><Link href="/subscriptions"><Target className="mr-2 h-4 w-4" />View All Subscriptions</Link></Button>
-                            <Button className="w-full justify-start" variant="outline" asChild><Link href="/utility-bills"><Zap className="mr-2 h-4 w-4" />Utility Bills</Link></Button>
-                            <Button className="w-full justify-start" variant="outline" asChild><Link href="/analytics"><TrendingUp className="mr-2 h-4 w-4" />View Analytics</Link></Button>
-                        </CardContent>
-                    </Card>
+                {/* Yearly Projection */}
+                <div className="glass-card rounded-xl p-6 relative overflow-hidden group">
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#c6afff]/10 rounded-full blur-3xl group-hover:bg-[#c6afff]/20 transition-colors" />
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="p-2 bg-[#c6afff]/10 rounded-lg text-[#dfd0ff]">
+                            <TrendingUp className="h-6 w-6" />
+                        </div>
+                        <span className="text-xs font-bold text-[#dfd0ff] px-2 py-1 bg-[#c6afff]/10 rounded-full">Projected</span>
+                    </div>
+                    <h3 className="text-[#bacac2] text-sm font-medium mb-1">Yearly Projection</h3>
+                    <p className="text-3xl font-extrabold font-[family-name:var(--font-plus-jakarta)] text-[#dfe2f2]">{(insights?.annualTotal || 0).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</p>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 mb-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <Download className="h-5 w-5" />
-                                Export Data
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            <Button 
-                                className="w-full justify-start" 
-                                variant="outline"
-                                onClick={exportToCSV}
-                            >
-                                <FileText className="mr-2 h-4 w-4" />
-                                Download CSV
-                            </Button>
-                            <Button 
-                                className="w-full justify-start" 
-                                variant="outline"
-                                onClick={exportToPDF}
-                            >
-                                <Download className="mr-2 h-4 w-4" />
-                                Download PDF Report
-                            </Button>
-                        </CardContent>
-                    </Card>
+                {/* Upcoming Bills */}
+                <div className="glass-card rounded-xl p-6 relative overflow-hidden group">
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#ffb4ab]/10 rounded-full blur-3xl group-hover:bg-[#ffb4ab]/20 transition-colors" />
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="p-2 bg-[#ffb4ab]/10 rounded-lg text-[#ffb4ab]">
+                            <AlertTriangle className="h-6 w-6" />
+                        </div>
+                        <span className="text-xs font-bold text-[#ffb4ab] px-2 py-1 bg-[#ffb4ab]/10 rounded-full">{insights?.overdueCount || 0} due soon</span>
+                    </div>
+                    <h3 className="text-[#bacac2] text-sm font-medium mb-1">Upcoming Bills</h3>
+                    <p className="text-3xl font-extrabold font-[family-name:var(--font-plus-jakarta)] text-[#dfe2f2]">{(insights?.pendingAmount || 0).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</p>
                 </div>
             </div>
+
+            {/* Main Dashboard Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 mb-10">
+                {/* Left: Upcoming Bills Table (60%) */}
+                <div className="lg:col-span-6 glass-card rounded-xl overflow-hidden">
+                    <div className="p-6 border-b border-white/[0.06] flex justify-between items-center">
+                        <h3 className="text-lg font-bold font-[family-name:var(--font-plus-jakarta)] text-[#dfe2f2]">Upcoming Bills</h3>
+                        <Link href="/upcoming" className="text-[#46f1c5] text-sm font-bold hover:underline">View All</Link>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="text-left">
+                                    <th className="px-6 py-4 text-[10px] uppercase tracking-widest font-black text-[#bacac2]/60">Service</th>
+                                    <th className="px-6 py-4 text-[10px] uppercase tracking-widest font-black text-[#bacac2]/60">Due Date</th>
+                                    <th className="px-6 py-4 text-[10px] uppercase tracking-widest font-black text-[#bacac2]/60">Amount</th>
+                                    <th className="px-6 py-4 text-[10px] uppercase tracking-widest font-black text-[#bacac2]/60 text-right">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/[0.06]">
+                                {upcomingBills.map((sub) => (
+                                    <tr key={sub.id} className="hover:bg-white/5 transition-colors group">
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-3">
+                                                {sub.logoUrl ? (
+                                                    <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center p-1.5 overflow-hidden">
+                                                        <img alt={sub.name} className="w-full h-full object-contain" src={sub.logoUrl} />
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-lg bg-[#46f1c5]/10 flex items-center justify-center text-sm font-bold text-[#46f1c5]">
+                                                        {sub.name.charAt(0)}
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <p className="text-sm font-bold text-[#dfe2f2]">{sub.name}</p>
+                                                    <p className="text-xs text-[#bacac2]">{sub.category}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5 text-sm font-medium text-[#dfe2f2]">
+                                            {sub.dueDate.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}
+                                        </td>
+                                        <td className="px-6 py-5 text-sm font-extrabold text-[#dfe2f2]">
+                                            {Number(sub.amount).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="px-6 py-5 text-right">
+                                            {sub.status === "paid" && (
+                                                <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[#46f1c5]/10 text-[#46f1c5]">Paid</span>
+                                            )}
+                                            {sub.status === "pending" && (
+                                                <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[#dfd0ff]/10 text-[#dfd0ff]">Pending</span>
+                                            )}
+                                            {sub.status === "overdue" && (
+                                                <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[#ffb4ab]/10 text-[#ffb4ab]">Overdue</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {upcomingBills.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-10 text-center text-sm text-[#bacac2]">No upcoming bills</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Right: Spending by Category Donut (40%) */}
+                <div className="lg:col-span-4 glass-card rounded-xl p-6 flex flex-col items-center">
+                    <div className="w-full flex justify-between items-center mb-8">
+                        <h3 className="text-lg font-bold font-[family-name:var(--font-plus-jakarta)] text-[#dfe2f2]">By Category</h3>
+                        <div className="p-2 bg-[#313441] rounded-lg cursor-pointer">
+                            <MoreVertical className="h-4 w-4 text-[#bacac2]" />
+                        </div>
+                    </div>
+                    <SimplePieChart
+                        data={insights?.categoryBreakdownRaw || []}
+                        total={insights?.monthlyTotal || 0}
+                    />
+                    <div className="w-full space-y-3 mt-8">
+                        {insights?.categoryBreakdownRaw?.slice(0, 4).map((cat, i) => (
+                            <div key={i} className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
+                                    <span className="text-sm font-medium text-[#bacac2]">{cat.name}</span>
+                                </div>
+                                <span className="text-sm font-bold text-[#dfe2f2]">{cat.value.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Recent Activity Timeline */}
+            {recentActivity.length > 0 && (
+                <section className="glass-card rounded-xl p-8">
+                    <h3 className="text-lg font-bold font-[family-name:var(--font-plus-jakarta)] text-[#dfe2f2] mb-8">Recent Activity</h3>
+                    <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:-translate-x-1/2 before:bg-white/[0.08]">
+                        {recentActivity.map((activity, i) => (
+                            <div key={i} className="relative flex items-center gap-6 group">
+                                <div className={cn(
+                                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#313441] z-10 transition-transform group-hover:scale-110",
+                                    activity.borderColor,
+                                    "border",
+                                    activity.shadowColor
+                                )}>
+                                    {activity.icon}
+                                </div>
+                                <div className="flex flex-col">
+                                    <p className="text-sm font-bold text-[#dfe2f2]">{activity.title}</p>
+                                    <p className="text-xs text-[#bacac2]">{activity.detail}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
         </div>
     )
 }
