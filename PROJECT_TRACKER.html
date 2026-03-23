@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SubTracker — Project Tracker</title>
+<style>
+  :root {
+    --bg: #0B0F1A;
+    --surface: #141825;
+    --surface2: #1b1f2b;
+    --border: rgba(255,255,255,0.06);
+    --text: #E8ECF4;
+    --text2: #8B95A8;
+    --teal: #00D4AA;
+    --teal-dim: rgba(0,212,170,0.12);
+    --blue: #3B82F6;
+    --blue-dim: rgba(59,130,246,0.12);
+    --amber: #F59E0B;
+    --amber-dim: rgba(245,158,11,0.12);
+    --red: #EF4444;
+    --red-dim: rgba(239,68,68,0.12);
+    --purple: #A855F7;
+    --purple-dim: rgba(168,85,247,0.12);
+    --green: #22C55E;
+    --green-dim: rgba(34,197,94,0.12);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  /* Header */
+  .header { max-width: 1400px; margin: 0 auto 2rem; }
+  .header h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.25rem; }
+  .header h1 span { color: var(--teal); }
+  .header p { color: var(--text2); font-size: 0.95rem; }
+  .header-meta { display: flex; gap: 2rem; margin-top: 1rem; flex-wrap: wrap; }
+  .header-meta .meta-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text2); }
+  .header-meta .meta-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Summary Cards */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; max-width: 1400px; margin: 0 auto 2.5rem; }
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 1.25rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .summary-card .orb {
+    position: absolute; top: -20px; right: -20px;
+    width: 80px; height: 80px; border-radius: 50%;
+    filter: blur(40px); opacity: 0.5;
+  }
+  .summary-card .label { font-size: 0.75rem; color: var(--text2); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 0.5rem; }
+  .summary-card .value { font-size: 2rem; font-weight: 800; position: relative; z-index: 1; }
+  .summary-card .sub { font-size: 0.75rem; color: var(--text2); margin-top: 0.25rem; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0.5rem; max-width: 1400px; margin: 0 auto 1.5rem; flex-wrap: wrap; }
+  .tab {
+    padding: 0.5rem 1.25rem;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab:hover { background: rgba(255,255,255,0.04); }
+  .tab.active { background: var(--teal-dim); color: var(--teal); border-color: rgba(0,212,170,0.3); }
+
+  /* Feature Section */
+  .sections { max-width: 1400px; margin: 0 auto; }
+  .section { margin-bottom: 2rem; display: none; }
+  .section.active { display: block; }
+  .section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+  .section-header h2 { font-size: 1.5rem; font-weight: 700; }
+  .section-header .badge {
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 0.25rem 0.75rem; border-radius: 9999px;
+  }
+
+  /* Feature Table */
+  .feature-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  .feature-table thead th {
+    text-align: left; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em;
+    font-weight: 700; color: var(--text2); padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--bg);
+  }
+  .feature-table tbody tr {
+    transition: background 0.15s;
+  }
+  .feature-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+  .feature-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.875rem;
+    vertical-align: top;
+  }
+  .feature-table td:first-child { font-weight: 600; }
+
+  /* Status badges */
+  .status {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 0.2rem 0.6rem; border-radius: 9999px;
+  }
+  .status-done { background: var(--teal-dim); color: var(--teal); }
+  .status-partial { background: var(--amber-dim); color: var(--amber); }
+  .status-missing { background: var(--red-dim); color: var(--red); }
+  .status-planned { background: var(--purple-dim); color: var(--purple); }
+  .status-inprogress { background: var(--blue-dim); color: var(--blue); }
+
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-done .status-dot { background: var(--teal); }
+  .status-partial .status-dot { background: var(--amber); }
+  .status-missing .status-dot { background: var(--red); }
+  .status-planned .status-dot { background: var(--purple); }
+  .status-inprogress .status-dot { background: var(--blue); }
+
+  /* Priority */
+  .priority { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .priority-critical { color: var(--red); }
+  .priority-high { color: var(--amber); }
+  .priority-medium { color: var(--blue); }
+  .priority-low { color: var(--text2); }
+
+  /* Progress bar */
+  .progress-wrap { display: flex; align-items: center; gap: 0.75rem; }
+  .progress-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 999px; transition: width 0.5s ease; }
+  .progress-label { font-size: 0.8rem; font-weight: 700; min-width: 36px; text-align: right; }
+
+  /* Roadmap section */
+  .roadmap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; }
+  .roadmap-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .roadmap-card .phase-label {
+    font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em;
+    margin-bottom: 0.75rem;
+  }
+  .roadmap-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .roadmap-card p { font-size: 0.8rem; color: var(--text2); margin-bottom: 1rem; line-height: 1.5; }
+  .roadmap-items { list-style: none; }
+  .roadmap-items li {
+    display: flex; align-items: flex-start; gap: 0.5rem;
+    font-size: 0.8rem; padding: 0.35rem 0;
+    color: var(--text2);
+  }
+  .roadmap-items li .ri-icon { flex-shrink: 0; margin-top: 2px; }
+  .roadmap-items li.done { color: var(--teal); }
+  .roadmap-items li.done .ri-icon::before { content: "✓"; color: var(--teal); font-weight: 700; }
+  .roadmap-items li.pending .ri-icon::before { content: "○"; color: var(--text2); }
+  .roadmap-items li.active .ri-icon::before { content: "◉"; color: var(--blue); }
+  .roadmap-items li.active { color: var(--blue); }
+
+  /* Tech debt */
+  .debt-list { list-style: none; }
+  .debt-item {
+    display: flex; align-items: flex-start; gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .debt-item:last-child { border-bottom: none; }
+  .debt-num { font-size: 0.7rem; font-weight: 800; color: var(--text2); min-width: 28px; height: 28px;
+    background: rgba(255,255,255,0.04); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .debt-content h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.2rem; }
+  .debt-content p { font-size: 0.78rem; color: var(--text2); line-height: 1.5; }
+
+  /* Footer */
+  .footer { max-width: 1400px; margin: 3rem auto 0; padding-top: 2rem; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+  .footer p { font-size: 0.78rem; color: var(--text2); }
+
+  @media (max-width: 768px) {
+    body { padding: 1rem; }
+    .header h1 { font-size: 1.75rem; }
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <h1>Sub<span>Tracker</span> Project Tracker</h1>
+  <p>Full-stack subscription & utility bill management app for the Indian market</p>
+  <div class="header-meta">
+    <div class="meta-item"><div class="meta-dot" style="background:var(--teal)"></div> Branch: feature/frontend-redesign</div>
+    <div class="meta-item"><div class="meta-dot" style="background:var(--blue)"></div> Stack: Next.js 16 + Hono + Prisma + PostgreSQL</div>
+    <div class="meta-item"><div class="meta-dot" style="background:var(--purple)"></div> Last Updated: March 23, 2026</div>
+  </div>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="orb" style="background:var(--teal)"></div>
+    <div class="label">Features Complete</div>
+    <div class="value" style="color:var(--teal)">42</div>
+    <div class="sub">of 58 total features</div>
+  </div>
+  <div class="summary-card">
+    <div class="orb" style="background:var(--amber)"></div>
+    <div class="label">Partially Done</div>
+    <div class="value" style="color:var(--amber)">7</div>
+    <div class="sub">need completion</div>
+  </div>
+  <div class="summary-card">
+    <div class="orb" style="background:var(--red)"></div>
+    <div class="label">Not Started</div>
+    <div class="value" style="color:var(--red)">9</div>
+    <div class="sub">planned features</div>
+  </div>
+  <div class="summary-card">
+    <div class="orb" style="background:var(--blue)"></div>
+    <div class="label">Completion</div>
+    <div class="value" style="color:var(--blue)">72%</div>
+    <div class="sub">
+      <div class="progress-wrap" style="margin-top:0.35rem">
+        <div class="progress-bar"><div class="progress-fill" style="width:72%;background:var(--blue)"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="summary-card">
+    <div class="orb" style="background:var(--purple)"></div>
+    <div class="label">Data Models</div>
+    <div class="value" style="color:var(--purple)">9</div>
+    <div class="sub">Prisma schema models</div>
+  </div>
+  <div class="summary-card">
+    <div class="orb" style="background:var(--green)"></div>
+    <div class="label">API Endpoints</div>
+    <div class="value" style="color:var(--green)">30+</div>
+    <div class="sub">Hono REST routes</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="showTab('built')">What's Built</button>
+  <button class="tab" onclick="showTab('partial')">Needs Work</button>
+  <button class="tab" onclick="showTab('roadmap')">Roadmap</button>
+  <button class="tab" onclick="showTab('debt')">Tech Debt</button>
+  <button class="tab" onclick="showTab('stack')">Tech Stack</button>
+</div>
+
+<!-- SECTIONS -->
+<div class="sections">
+
+<!-- ===== WHAT'S BUILT ===== -->
+<div id="built" class="section active">
+
+  <!-- AUTH -->
+  <div class="section-header">
+    <h2>Authentication</h2>
+    <span class="badge" style="background:var(--teal-dim);color:var(--teal)">Complete</span>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Feature</th><th style="width:12%">Status</th><th>Details</th><th style="width:22%">Key Files</th></tr></thead>
+    <tbody>
+      <tr><td>Email/Password Sign-up</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Registration with OTP email verification via Resend. 6-digit code, 5-min expiry.</td><td>auth/server/route.ts</td></tr>
+      <tr><td>Email/Password Sign-in</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>JWT-based login. Access token (24h) + refresh token (7d) in HTTP-only cookies.</td><td>auth/server/route.ts, jwt.ts</td></tr>
+      <tr><td>OTP Verification</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Email-delivered 6-digit OTP. Required before first login. Resend integration.</td><td>auth/components/verify-otp-card.tsx</td></tr>
+      <tr><td>Session Management</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>JWT middleware on all protected routes. Auto-injects user into Hono context.</td><td>sessionMiddleware.ts</td></tr>
+      <tr><td>Password Change</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Requires current password verification. bcrypt 10 rounds.</td><td>auth/api/use-change-password.ts</td></tr>
+      <tr><td>Profile Update</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Name + phone number with uniqueness validation.</td><td>auth/api/use-update-profile.ts</td></tr>
+      <tr><td>Account Deletion</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Full cascade delete of all user data. Confirmation dialog.</td><td>auth/api/use-delete-account.ts</td></tr>
+      <tr><td>Forgot Password</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td>No reset-via-email flow. TODO noted in codebase.</td><td>—</td></tr>
+      <tr><td>Rate Limiting</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td>No brute-force protection on login. TODO noted.</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <!-- SUBSCRIPTION MANAGEMENT -->
+  <div class="section-header" style="margin-top:2.5rem">
+    <h2>Subscription Management</h2>
+    <span class="badge" style="background:var(--teal-dim);color:var(--teal)">Complete</span>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Feature</th><th style="width:12%">Status</th><th>Details</th><th style="width:22%">Key Files</th></tr></thead>
+    <tbody>
+      <tr><td>Create Subscription</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Full form with 20 fields. Auto-calculates next billing date from cycle. 50+ popular templates with logos.</td><td>subscriptions/server/route.ts</td></tr>
+      <tr><td>Update Subscription</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>All fields editable. Recalculates billing dates on change.</td><td>use-update-subscription.ts</td></tr>
+      <tr><td>Delete Subscription</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Cascade deletes billing history records.</td><td>use-delete-subscription.ts</td></tr>
+      <tr><td>Mark as Paid</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Updates lastPaidDate, status to SUCCESS, recalculates nextBillingDate.</td><td>use-mark-as-paid.ts</td></tr>
+      <tr><td>Skip Payment</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Sets status to SKIPPED. Useful for paused services.</td><td>use-skip-payment.ts</td></tr>
+      <tr><td>Usage Tracking</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>DAILY/WEEKLY/MONTHLY/RARELY/NEVER frequency + lastUsedDate tracking.</td><td>use-mark-as-used.ts</td></tr>
+      <tr><td>Popular Templates</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>50+ Indian services across 11 categories with logos, default INR amounts, billing cycles.</td><td>data/popular-subscriptions.ts</td></tr>
+      <tr><td>Unused Detection</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Smart heuristics based on usage frequency and last-used thresholds. Shows potential savings.</td><td>dashboard-content.tsx</td></tr>
+    </tbody>
+  </table>
+
+  <!-- DASHBOARD & ANALYTICS -->
+  <div class="section-header" style="margin-top:2.5rem">
+    <h2>Dashboard & Analytics</h2>
+    <span class="badge" style="background:var(--teal-dim);color:var(--teal)">Complete</span>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Feature</th><th style="width:12%">Status</th><th>Details</th><th style="width:22%">Key Files</th></tr></thead>
+    <tbody>
+      <tr><td>Dashboard Overview</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Monthly/annual spend, daily cost, active/inactive counts — all from real DB data.</td><td>dashboard-content.tsx</td></tr>
+      <tr><td>Category Donut Chart</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Custom SVG pie chart. Real subscription data by category.</td><td>dashboard-content.tsx</td></tr>
+      <tr><td>Upcoming Bills Table</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Real subscription data sorted by next billing date with status badges.</td><td>dashboard-content.tsx</td></tr>
+      <tr><td>Spending Trends</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>6-month historical view with gradient bar chart.</td><td>analytics/page.tsx</td></tr>
+      <tr><td>Top 5 Expensive</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Ranked horizontal bar chart sorted by monthly cost.</td><td>analytics/page.tsx</td></tr>
+      <tr><td>Billing Cycle Breakdown</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Count and percentage of subscriptions per cycle type.</td><td>analytics/page.tsx</td></tr>
+      <tr><td>Budget Performance</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Spent vs limit per category with color-coded progress bars.</td><td>analytics/page.tsx</td></tr>
+    </tbody>
+  </table>
+
+  <!-- BILLING & PAYMENTS -->
+  <div class="section-header" style="margin-top:2.5rem">
+    <h2>Billing History & Upcoming</h2>
+    <span class="badge" style="background:var(--teal-dim);color:var(--teal)">Complete</span>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Feature</th><th style="width:12%">Status</th><th>Details</th><th style="width:22%">Key Files</th></tr></thead>
+    <tbody>
+      <tr><td>Billing History Table</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Filterable by status (ALL/PAID/PENDING/OVERDUE/SKIPPED). Search by name/category.</td><td>billing-history/page.tsx</td></tr>
+      <tr><td>Summary Stats</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Total paid, total pending, total overdue — computed from real data.</td><td>billing-history/page.tsx</td></tr>
+      <tr><td>Upcoming Bills Groups</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Auto-grouped: Overdue (red), This Week (orange), This Month (blue), Next 30 Days (teal).</td><td>upcoming/page.tsx</td></tr>
+      <tr><td>Overdue Detection</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Automatic detection of past-due subscriptions. Count + total amount.</td><td>upcoming/page.tsx</td></tr>
+      <tr><td>Quick Actions</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Mark as paid / Skip inline from billing history and upcoming views.</td><td>billing-history/page.tsx</td></tr>
+    </tbody>
+  </table>
+
+  <!-- UTILITY BILLS -->
+  <div class="section-header" style="margin-top:2.5rem">
+    <h2>Utility Bills</h2>
+    <span class="badge" style="background:var(--teal-dim);color:var(--teal)">Complete</span>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Feature</th><th style="width:12%">Status</th><th>Details</th><th style="width:22%">Key Files</th></tr></thead>
+    <tbody>
+      <tr><td>CRUD Operations</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Create/record/view/delete for Electricity, Water, Gas, Internet, Mobile, Society, Other.</td><td>subscriptions/server/route.ts</td></tr>
+      <tr><td>Bill Recording</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Log actual monthly amounts with optional units consumed (kWh, liters, etc).</td><td>use-utility-bills.ts</td></tr>
+      <tr><td>Bill Estimation</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>MANUAL, HISTORICAL_AVG, WEIGHTED_AVG methods. Confidence scoring (30-85%).</td><td>subscriptions/server/route.ts</td></tr>
+      <tr><td>Variance Tracking</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Actual vs estimated with % variance. Alerts for &gt;20% deviation.</td><td>utility-bill-card.tsx</td></tr>
+      <tr><td>Accuracy Analytics</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Tracks % of estimates within 10% and 20% of actual. Historical accuracy view.</td><td>use-utility-bills.ts</td></tr>
+      <tr><td>Seasonal Estimation</td><td><span class="status status-partial"><span class="status-dot"></span>Partial</span></td><td>Enum exists (SEASONAL_AVG) but server-side seasonal calculation not implemented.</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <!-- BUDGETS -->
+  <div class="section-header" style="margin-top:2.5rem">
+    <h2>Budget System</h2>
+    <span class="badge" style="background:var(--teal-dim);color:var(--teal)">Complete</span>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Feature</th><th style="width:12%">Status</th><th>Details</th><th style="width:22%">Key Files</th></tr></thead>
+    <tbody>
+      <tr><td>Budget CRUD</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Create/update/delete budgets per category per month. Category limit enforcement.</td><td>budgets/server/route.ts</td></tr>
+      <tr><td>Expense Tracking</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Manual expenses + auto-inclusion of subscriptions in matching categories.</td><td>budgets/api/use-create-expense.ts</td></tr>
+      <tr><td>Safe-to-Spend</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>SVG circular progress. Income - Fixed Bills - Budget Allocations = Safe amount.</td><td>safe-to-spend-card.tsx</td></tr>
+      <tr><td>Income Tracking</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Set/update monthly income. Used in safe-to-spend calculation.</td><td>budgets/api/use-update-income.ts</td></tr>
+      <tr><td>Carry Forward</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Copy budgets from one month to another (skips existing categories).</td><td>budgets/api/use-carry-forward.ts</td></tr>
+      <tr><td>Budget Analytics</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>6-month historical view. Limit vs spent, category breakdown, savings calculation.</td><td>budget-analytics-section.tsx</td></tr>
+    </tbody>
+  </table>
+
+  <!-- EXPORT & NOTIFICATIONS -->
+  <div class="section-header" style="margin-top:2.5rem">
+    <h2>Export & Notifications</h2>
+    <span class="badge" style="background:var(--teal-dim);color:var(--teal)">Complete</span>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Feature</th><th style="width:12%">Status</th><th>Details</th><th style="width:22%">Key Files</th></tr></thead>
+    <tbody>
+      <tr><td>CSV Export</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>All subscription fields: name, amount, cycle, category, status, dates, auto-renew.</td><td>subscriptions/server/route.ts</td></tr>
+      <tr><td>PDF Export</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>jsPDF-generated report with overview, charts, category breakdown, top 15 table.</td><td>subscriptions/server/route.ts</td></tr>
+      <tr><td>Email Reminders</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Resend API. Sends N days before billing (configurable 1-30). Dedup per month.</td><td>send-reminders.ts</td></tr>
+      <tr><td>Overdue Alerts</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Automatic email when payment is past due. Respects user notification preferences.</td><td>send-reminders.ts</td></tr>
+      <tr><td>Push Notifications</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td>Schema field exists (pushNotifications) but no browser push implementation.</td><td>—</td></tr>
+      <tr><td>SMS Notifications</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td>Schema field exists (sendSms) but no SMS provider integrated.</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <!-- SETTINGS & UI -->
+  <div class="section-header" style="margin-top:2.5rem">
+    <h2>Settings & UI</h2>
+    <span class="badge" style="background:var(--teal-dim);color:var(--teal)">Complete</span>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Feature</th><th style="width:12%">Status</th><th>Details</th><th style="width:22%">Key Files</th></tr></thead>
+    <tbody>
+      <tr><td>Profile Settings</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Name, phone, password change, regional settings (currency/timezone).</td><td>settings-content.tsx</td></tr>
+      <tr><td>Notification Preferences</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Email/push toggles, reminder days, per-subscription notification config.</td><td>settings-content.tsx</td></tr>
+      <tr><td>Landing Page</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Hero, features, how-it-works, stats, pricing, testimonials, FAQ, CTA.</td><td>components/landing/*.tsx</td></tr>
+      <tr><td>Responsive Layout</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Sidebar + mobile sheet nav. Responsive grids (sm/md/lg/xl breakpoints).</td><td>sidebar.tsx, mobile-sidebar.tsx</td></tr>
+      <tr><td>Stitch Redesign</td><td><span class="status status-done"><span class="status-dot"></span>Done</span></td><td>Full dark theme redesign matching Google Stitch designs. Glass morphism, SVG charts.</td><td>globals.css, all pages</td></tr>
+    </tbody>
+  </table>
+
+</div>
+
+<!-- ===== NEEDS WORK ===== -->
+<div id="partial" class="section">
+  <div class="section-header">
+    <h2>Features That Need Work</h2>
+    <span class="badge" style="background:var(--amber-dim);color:var(--amber)">7 Partial + 9 Missing</span>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:22%">Feature</th><th style="width:10%">Status</th><th style="width:10%">Priority</th><th>What's Missing</th><th style="width:15%">Effort</th></tr></thead>
+    <tbody>
+      <tr><td>Forgot Password</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td><span class="priority priority-critical">Critical</span></td><td>No password reset flow. Users locked out if password forgotten. Need: reset email, token generation, new password form.</td><td>4-6 hours</td></tr>
+      <tr><td>Rate Limiting</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td><span class="priority priority-critical">Critical</span></td><td>No brute-force protection on login/signup. Need: @hono/rate-limiter or custom IP-based throttle.</td><td>2-3 hours</td></tr>
+      <tr><td>Push Notifications</td><td><span class="status status-partial"><span class="status-dot"></span>Partial</span></td><td><span class="priority priority-high">High</span></td><td>Schema ready, UI toggle exists. Need: Service Worker, Web Push API, VAPID keys, push subscription storage.</td><td>8-12 hours</td></tr>
+      <tr><td>Seasonal Estimation</td><td><span class="status status-partial"><span class="status-dot"></span>Partial</span></td><td><span class="priority priority-medium">Medium</span></td><td>Enum exists but no calculation logic. Need: same-month historical averaging for seasonal patterns.</td><td>3-4 hours</td></tr>
+      <tr><td>Currency Display</td><td><span class="status status-partial"><span class="status-dot"></span>Partial</span></td><td><span class="priority priority-medium">Medium</span></td><td>User can set currency code but all UI hardcodes ₹ symbol. Need: dynamic currency formatting.</td><td>3-4 hours</td></tr>
+      <tr><td>Transaction IDs</td><td><span class="status status-partial"><span class="status-dot"></span>Partial</span></td><td><span class="priority priority-low">Low</span></td><td>Field exists in BillingHistory schema but never populated. Need: input field in mark-as-paid flow.</td><td>1-2 hours</td></tr>
+      <tr><td>Stitch Sign-in Page</td><td><span class="status status-partial"><span class="status-dot"></span>Partial</span></td><td><span class="priority priority-low">Low</span></td><td>Auth pages updated but not fully matched to stitch/sign_in reference.</td><td>2-3 hours</td></tr>
+      <tr><td>Stitch Landing Page</td><td><span class="status status-partial"><span class="status-dot"></span>Partial</span></td><td><span class="priority priority-low">Low</span></td><td>Landing page updated but not matched to stitch/landing_page reference.</td><td>4-6 hours</td></tr>
+      <tr><td>Bank Statement Import</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td><span class="priority priority-high">High</span></td><td>No CSV upload for bank/UPI statements. Would auto-detect recurring charges. New feature.</td><td>16-24 hours</td></tr>
+      <tr><td>Smart Insights</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td><span class="priority priority-high">High</span></td><td>No proactive alerts like "spending up 30%" or "Netflix price increased". Data exists, intelligence layer doesn't.</td><td>12-16 hours</td></tr>
+      <tr><td>Spending Forecast</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td><span class="priority priority-medium">Medium</span></td><td>No predictive model for next month's total. Utility estimation engine exists, not extended.</td><td>8-12 hours</td></tr>
+      <tr><td>Price Change Detection</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td><span class="priority priority-medium">Medium</span></td><td>No alert when subscription amount changes vs previous billing. Data available in billing history.</td><td>4-6 hours</td></tr>
+      <tr><td>Payment Calendar View</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td><span class="priority priority-medium">Medium</span></td><td>No visual calendar showing when each bill hits. Would help cash flow planning.</td><td>8-12 hours</td></tr>
+      <tr><td>Shared Subscriptions</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td><span class="priority priority-low">Low</span></td><td>No multi-user or family plan tracking. Single-user only architecture.</td><td>20+ hours</td></tr>
+      <tr><td>SMS Notifications</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td><span class="priority priority-low">Low</span></td><td>Schema field exists but no SMS provider (MSG91, Twilio). Nice-to-have for Indian market.</td><td>6-8 hours</td></tr>
+      <tr><td>Payment Gateway</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td><span class="priority priority-low">Low</span></td><td>No actual payment processing (Razorpay/Stripe). Currently only tracks, doesn't pay.</td><td>20+ hours</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ===== ROADMAP ===== -->
+<div id="roadmap" class="section">
+  <div class="section-header">
+    <h2>Development Roadmap</h2>
+  </div>
+  <div class="roadmap-grid">
+
+    <div class="roadmap-card" style="border-left: 3px solid var(--teal)">
+      <div class="phase-label" style="color:var(--teal)">Phase 1 — Foundation (Done)</div>
+      <h3>Core MVP</h3>
+      <p>Basic subscription tracking with full CRUD, auth system, and essential views.</p>
+      <ul class="roadmap-items">
+        <li class="done"><span class="ri-icon"></span>Email/password auth with JWT + OTP verification</li>
+        <li class="done"><span class="ri-icon"></span>Subscription CRUD with 50+ popular templates</li>
+        <li class="done"><span class="ri-icon"></span>Dashboard with real-time stats & charts</li>
+        <li class="done"><span class="ri-icon"></span>Billing history with filters & search</li>
+        <li class="done"><span class="ri-icon"></span>Upcoming bills with overdue detection</li>
+        <li class="done"><span class="ri-icon"></span>CSV & PDF export</li>
+        <li class="done"><span class="ri-icon"></span>Email reminders via Resend</li>
+        <li class="done"><span class="ri-icon"></span>Settings page with preferences</li>
+      </ul>
+    </div>
+
+    <div class="roadmap-card" style="border-left: 3px solid var(--blue)">
+      <div class="phase-label" style="color:var(--blue)">Phase 2 — Advanced Tracking (Done)</div>
+      <h3>Utility Bills & Budgets</h3>
+      <p>Variable bill tracking, budget management, and financial intelligence.</p>
+      <ul class="roadmap-items">
+        <li class="done"><span class="ri-icon"></span>Utility bill CRUD with 7 categories</li>
+        <li class="done"><span class="ri-icon"></span>Bill estimation engine (3 methods + confidence scoring)</li>
+        <li class="done"><span class="ri-icon"></span>Variance & accuracy tracking</li>
+        <li class="done"><span class="ri-icon"></span>Budget system with safe-to-spend</li>
+        <li class="done"><span class="ri-icon"></span>Expense tracking (manual + auto from subscriptions)</li>
+        <li class="done"><span class="ri-icon"></span>Carry forward budgets</li>
+        <li class="done"><span class="ri-icon"></span>Analytics page with bento grid layout</li>
+        <li class="done"><span class="ri-icon"></span>Unused subscription detection</li>
+      </ul>
+    </div>
+
+    <div class="roadmap-card" style="border-left: 3px solid var(--purple)">
+      <div class="phase-label" style="color:var(--purple)">Phase 3 — UI Redesign (Done)</div>
+      <h3>Stitch Design System</h3>
+      <p>Complete visual overhaul matching Google Stitch dark theme designs.</p>
+      <ul class="roadmap-items">
+        <li class="done"><span class="ri-icon"></span>Glass morphism cards & dark theme</li>
+        <li class="done"><span class="ri-icon"></span>SVG donut & circular progress charts</li>
+        <li class="done"><span class="ri-icon"></span>Sidebar, navbar, navigation redesign</li>
+        <li class="done"><span class="ri-icon"></span>All 8 dashboard pages rewritten</li>
+        <li class="done"><span class="ri-icon"></span>Plus Jakarta Sans + Manrope fonts</li>
+        <li class="pending"><span class="ri-icon"></span>Sign-in/Sign-up Stitch match</li>
+        <li class="pending"><span class="ri-icon"></span>Landing page Stitch match</li>
+        <li class="pending"><span class="ri-icon"></span>Mobile responsive QA pass</li>
+      </ul>
+    </div>
+
+    <div class="roadmap-card" style="border-left: 3px solid var(--amber)">
+      <div class="phase-label" style="color:var(--amber)">Phase 4 — Security & Reliability (Next)</div>
+      <h3>Production Hardening</h3>
+      <p>Critical security and reliability features before going live.</p>
+      <ul class="roadmap-items">
+        <li class="pending"><span class="ri-icon"></span>Forgot password / reset-via-email flow</li>
+        <li class="pending"><span class="ri-icon"></span>Rate limiting on auth endpoints</li>
+        <li class="pending"><span class="ri-icon"></span>Dynamic currency display (not just ₹)</li>
+        <li class="pending"><span class="ri-icon"></span>Input sanitization audit</li>
+        <li class="pending"><span class="ri-icon"></span>Error boundary components</li>
+        <li class="pending"><span class="ri-icon"></span>Proper loading skeletons on all pages</li>
+        <li class="pending"><span class="ri-icon"></span>API response caching strategy</li>
+      </ul>
+    </div>
+
+    <div class="roadmap-card" style="border-left: 3px solid var(--red)">
+      <div class="phase-label" style="color:var(--red)">Phase 5 — Intelligence Layer</div>
+      <h3>Smart Features</h3>
+      <p>Proactive insights that make the app genuinely useful beyond tracking.</p>
+      <ul class="roadmap-items">
+        <li class="pending"><span class="ri-icon"></span>Smart spending insights & alerts</li>
+        <li class="pending"><span class="ri-icon"></span>Price change detection & alerts</li>
+        <li class="pending"><span class="ri-icon"></span>Spending forecasting (next month prediction)</li>
+        <li class="pending"><span class="ri-icon"></span>Seasonal utility bill estimation</li>
+        <li class="pending"><span class="ri-icon"></span>Subscription plan comparison & recommendations</li>
+        <li class="pending"><span class="ri-icon"></span>Weekly/monthly email digest reports</li>
+      </ul>
+    </div>
+
+    <div class="roadmap-card" style="border-left: 3px solid var(--green)">
+      <div class="phase-label" style="color:var(--green)">Phase 6 — Growth Features</div>
+      <h3>Power User & Scale</h3>
+      <p>Features that make the app a daily-use financial tool.</p>
+      <ul class="roadmap-items">
+        <li class="pending"><span class="ri-icon"></span>Bank statement CSV import (auto-detect subscriptions)</li>
+        <li class="pending"><span class="ri-icon"></span>Payment calendar view</li>
+        <li class="pending"><span class="ri-icon"></span>Push notifications (Web Push API)</li>
+        <li class="pending"><span class="ri-icon"></span>Shared/family subscription tracking</li>
+        <li class="pending"><span class="ri-icon"></span>SMS reminders (MSG91 for India)</li>
+        <li class="pending"><span class="ri-icon"></span>Razorpay integration for actual payments</li>
+        <li class="pending"><span class="ri-icon"></span>Mobile PWA or React Native app</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== TECH DEBT ===== -->
+<div id="debt" class="section">
+  <div class="section-header">
+    <h2>Tech Debt & Code Quality</h2>
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:1.25rem;overflow:hidden;">
+    <ul class="debt-list">
+      <li class="debt-item">
+        <div class="debt-num">1</div>
+        <div class="debt-content">
+          <h4>No charting library — all charts are custom SVG/CSS</h4>
+          <p>Works for current needs but will become unmaintainable as analytics grow. Consider migrating to Recharts or Chart.js for interactive tooltips, zoom, and complex visualizations.</p>
+        </div>
+      </li>
+      <li class="debt-item">
+        <div class="debt-num">2</div>
+        <div class="debt-content">
+          <h4>Currency symbol hardcoded as ₹ across all pages</h4>
+          <p>User can set currency code in settings but every page renders ₹. Need a formatCurrency() utility that reads from user context.</p>
+        </div>
+      </li>
+      <li class="debt-item">
+        <div class="debt-num">3</div>
+        <div class="debt-content">
+          <h4>Spending trend uses simulated variations</h4>
+          <p>Analytics 6-month trend adds random ±15% to current monthly spend. Should use actual billing history aggregated by month.</p>
+        </div>
+      </li>
+      <li class="debt-item">
+        <div class="debt-num">4</div>
+        <div class="debt-content">
+          <h4>No persistent job queue for reminders</h4>
+          <p>Cron uses basic node-cron. Needs external scheduler (Vercel Cron, Inngest, or BullMQ) for reliable delivery at scale.</p>
+        </div>
+      </li>
+      <li class="debt-item">
+        <div class="debt-num">5</div>
+        <div class="debt-content">
+          <h4>Hydration warnings on auth pages (dev-only)</h4>
+          <p>React useId() mismatch between SSR and client for form components. Mitigated with suppressHydrationWarning but root cause is async Server Component boundary.</p>
+        </div>
+      </li>
+      <li class="debt-item">
+        <div class="debt-num">6</div>
+        <div class="debt-content">
+          <h4>No API response validation on client</h4>
+          <p>Hono RPC provides type inference but runtime response validation is missing. Malformed API responses could crash the UI.</p>
+        </div>
+      </li>
+      <li class="debt-item">
+        <div class="debt-num">7</div>
+        <div class="debt-content">
+          <h4>No error boundaries</h4>
+          <p>A single component error crashes the entire page. Need React Error Boundary components per section to contain failures gracefully.</p>
+        </div>
+      </li>
+      <li class="debt-item">
+        <div class="debt-num">8</div>
+        <div class="debt-content">
+          <h4>No automated tests</h4>
+          <p>Zero unit tests, integration tests, or E2E tests. Critical for a financial app. Need at minimum: auth flow tests, payment tracking tests, budget calculation tests.</p>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== TECH STACK ===== -->
+<div id="stack" class="section">
+  <div class="section-header">
+    <h2>Technology Stack</h2>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:18%">Layer</th><th style="width:25%">Technology</th><th style="width:12%">Version</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Framework</td><td>Next.js (App Router)</td><td>16.1.6</td><td>Turbopack for dev. Mixed server/client components.</td></tr>
+      <tr><td>UI Library</td><td>React</td><td>19.2.3</td><td>Hooks-based. React 19 features (useId, Suspense).</td></tr>
+      <tr><td>Language</td><td>TypeScript</td><td>5.x</td><td>Strict mode. Zod for runtime validation.</td></tr>
+      <tr><td>API Server</td><td>Hono</td><td>4.11.9</td><td>Runs inside Next.js catch-all route. Type-safe RPC client.</td></tr>
+      <tr><td>Database</td><td>PostgreSQL via Prisma</td><td>7.4.0</td><td>9 models, 7 enums. Prisma client singleton.</td></tr>
+      <tr><td>Data Fetching</td><td>TanStack React Query</td><td>5.90.21</td><td>Cache invalidation, optimistic updates, loading states.</td></tr>
+      <tr><td>Forms</td><td>React Hook Form + Zod</td><td>7.71 + 4.3</td><td>Shared schemas between client validation and server.</td></tr>
+      <tr><td>UI Components</td><td>Shadcn UI + Radix UI</td><td>Latest</td><td>20+ primitives. Customized with glass morphism theme.</td></tr>
+      <tr><td>Styling</td><td>Tailwind CSS</td><td>4.x</td><td>Dark theme. Custom CSS variables. Plus Jakarta Sans + Manrope fonts.</td></tr>
+      <tr><td>Auth</td><td>JWT + bcryptjs</td><td>9.0.3</td><td>Access + refresh tokens in HTTP-only cookies.</td></tr>
+      <tr><td>Email</td><td>Resend</td><td>6.9.2</td><td>OTP delivery, bill reminders, overdue alerts.</td></tr>
+      <tr><td>PDF Export</td><td>jsPDF</td><td>4.2.0</td><td>Server-generated multi-page PDF reports.</td></tr>
+      <tr><td>Scheduler</td><td>node-cron</td><td>4.2.1</td><td>Basic cron for reminders. Needs upgrade for production.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="section-header" style="margin-top:2.5rem">
+    <h2>Database Schema</h2>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:22%">Model</th><th style="width:10%">Fields</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>User</td><td>16</td><td>Auth credentials, profile, income, notification prefs, timezone, currency</td></tr>
+      <tr><td>Subscription</td><td>20</td><td>Core subscription data — billing, payment, usage tracking, reminders</td></tr>
+      <tr><td>BillingHistory</td><td>8</td><td>Payment records with amount, status, method, transaction ID</td></tr>
+      <tr><td>BillRecord</td><td>11</td><td>Utility bill monthly records — amount, units consumed, payment status</td></tr>
+      <tr><td>BillEstimate</td><td>11</td><td>Utility bill forecasts — estimated amount, method, confidence, variance</td></tr>
+      <tr><td>NotificationPreference</td><td>8</td><td>Per-subscription notification channels and timing</td></tr>
+      <tr><td>SentNotification</td><td>8</td><td>Audit trail preventing duplicate sends per billing month</td></tr>
+      <tr><td>Budget</td><td>6</td><td>Monthly category budget limits</td></tr>
+      <tr><td>BudgetExpense</td><td>7</td><td>Manual expense entries within budget categories</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <p>SubTracker Project Tracker &middot; Generated March 23, 2026</p>
+  <p>Branch: feature/frontend-redesign &middot; Stack: Next.js + Hono + Prisma + PostgreSQL</p>
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

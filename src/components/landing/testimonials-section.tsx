@@ -1,88 +1,66 @@
-"use client"
-
-import { motion } from "framer-motion"
-import { Quote } from "lucide-react"
+import { Star } from "lucide-react"
 
 const testimonials = [
     {
-        name: "Rahul S.",
-        location: "Mumbai",
-        initials: "RS",
-        gradientFrom: "#00D4AA",
-        gradientTo: "#3B82F6",
-        quote: "I was paying for 4 streaming services I barely used. SubTracker helped me identify and cancel them, saving me over ₹1,500/month!",
+        name: "Arjun Sharma",
+        location: "Mumbai, India",
+        initials: "AS",
+        quote: "I found three Netflix accounts being charged to different cards. SubTracker saved me ₹1,500/month instantly.",
+        gradient: "from-[#46f1c5] to-[#0566d9]",
     },
     {
-        name: "Priya M.",
-        location: "Bangalore",
-        initials: "PM",
-        gradientFrom: "#8B5CF6",
-        gradientTo: "#3B82F6",
-        quote: "The budgeting feature is a game-changer. I finally know how much I can safely spend each month after all my bills and subscriptions.",
+        name: "Ananya Patel",
+        location: "Bangalore, India",
+        initials: "AP",
+        quote: "The clean UI makes financial planning actually fun. Best tool for keeping track of all those hidden SaaS costs.",
+        gradient: "from-[#c6afff] to-[#0566d9]",
     },
     {
-        name: "Arjun K.",
-        location: "Delhi",
-        initials: "AK",
-        gradientFrom: "#F59E0B",
-        gradientTo: "#EF4444",
-        quote: "Tracking utility bills used to be a nightmare. Now I get estimates, track payments, and never miss a due date. Highly recommend!",
+        name: "Rohan Gupta",
+        location: "Delhi, India",
+        initials: "RG",
+        quote: "Highly recommend for students. Helps you stay on top of gym, hosting, and streaming bills effortlessly.",
+        gradient: "from-[#f59e0b] to-[#ef4444]",
     },
 ]
 
 export function TestimonialsSection() {
     return (
-        <section className="relative py-20 md:py-28">
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+        <section className="py-24 px-6 bg-[#171b27]/50">
+            <div className="max-w-7xl mx-auto">
+                <h2 className="text-3xl md:text-4xl font-[family-name:var(--font-plus-jakarta)] font-bold mb-16 text-center">
+                    User Stories
+                </h2>
 
-            <div className="relative mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-100px" }}
-                    transition={{ duration: 0.6 }}
-                    className="text-center mb-14"
-                >
-                    <span className="inline-block text-xs font-medium tracking-widest uppercase text-[#00D4AA] mb-4">
-                        Testimonials
-                    </span>
-                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 font-[family-name:var(--font-plus-jakarta)]">
-                        Loved by Thousands
-                    </h2>
-                    <p className="text-base md:text-lg text-[#7A8BA8]">
-                        See what our users have to say.
-                    </p>
-                </motion.div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
-                    {testimonials.map((t, index) => (
-                        <motion.div
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {testimonials.map((t) => (
+                        <div
                             key={t.name}
-                            initial={{ opacity: 0, y: 30 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: "-80px" }}
-                            transition={{ duration: 0.5, delay: index * 0.1 }}
-                            className="glass-card glass-card-hover rounded-xl p-6"
+                            className="bg-[#1b1f2b] p-8 rounded-2xl border border-white/5"
                         >
-                            <Quote className="h-5 w-5 text-[#00D4AA]/40 mb-4" />
-                            <p className="text-sm text-[#C0CAD8] mb-6 leading-relaxed">
+                            {/* Stars */}
+                            <div className="flex gap-1 text-[#46f1c5] mb-4">
+                                {[...Array(5)].map((_, i) => (
+                                    <Star key={i} className="w-4 h-4 fill-current" />
+                                ))}
+                            </div>
+
+                            <p className="italic text-[#dfe2f2] mb-8">
                                 &ldquo;{t.quote}&rdquo;
                             </p>
-                            <div className="flex items-center gap-3">
+
+                            <div className="flex items-center gap-4">
                                 <div
-                                    className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
-                                    style={{
-                                        background: `linear-gradient(135deg, ${t.gradientFrom}40, ${t.gradientTo}40)`,
-                                    }}
+                                    className={`w-12 h-12 rounded-full bg-gradient-to-br ${t.gradient} flex items-center justify-center text-white text-sm font-bold`}
                                 >
                                     {t.initials}
                                 </div>
                                 <div>
-                                    <p className="font-medium text-sm text-white">{t.name}</p>
-                                    <p className="text-xs text-[#7A8BA8]">{t.location}</p>
+                                    <p className="font-bold">{t.name}</p>
+                                    <p className="text-xs text-[#bacac2]">{t.location}</p>
                                 </div>
                             </div>
-                        </motion.div>
+                        </div>
                     ))}
                 </div>
             </div>
