@@ -18,7 +18,7 @@ export function BudgetAnalyticsSection({ months = 6 }: { months?: number }) {
         return (
             <Card>
                 <CardContent className="p-6">
-                    <div className="h-40 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-40 bg-white/[0.06] rounded animate-pulse" />
                 </CardContent>
             </Card>
         )
@@ -48,19 +48,19 @@ export function BudgetAnalyticsSection({ months = 6 }: { months?: number }) {
                         <div key={cat.category} className="space-y-1">
                             <div className="flex justify-between text-sm">
                                 <span className="font-medium">{cat.category}</span>
-                                <span className={cn(overspent ? "text-red-600 font-medium" : "text-muted-foreground")}>
+                                <span className={cn(overspent ? "text-[#EF4444] font-medium" : "text-muted-foreground")}>
                                     ₹{cat.spent.toLocaleString("en-IN")} / ₹{cat.limit.toLocaleString("en-IN")}
                                 </span>
                             </div>
-                            <div className="relative h-5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="relative h-5 bg-white/[0.06] rounded-full overflow-hidden">
                                 <div
-                                    className="absolute inset-y-0 left-0 bg-gray-300 rounded-full"
+                                    className="absolute inset-y-0 left-0 bg-white/[0.1] rounded-full"
                                     style={{ width: `${(cat.limit / maxValue) * 100}%` }}
                                 />
                                 <div
                                     className={cn(
                                         "absolute inset-y-0 left-0 rounded-full",
-                                        overspent ? "bg-red-400" : "bg-opacity-80"
+                                        overspent ? "bg-[#EF4444]" : "bg-opacity-80"
                                     )}
                                     style={{
                                         width: `${(cat.spent / maxValue) * 100}%`,
@@ -87,7 +87,7 @@ export function BudgetAnalyticsSection({ months = 6 }: { months?: number }) {
                                         <div
                                             className={cn(
                                                 "w-full rounded-t",
-                                                clampedAdherence >= 70 ? "bg-green-400" : clampedAdherence >= 40 ? "bg-yellow-400" : "bg-red-400"
+                                                clampedAdherence >= 70 ? "bg-[#00D4AA]" : clampedAdherence >= 40 ? "bg-[#F59E0B]" : "bg-[#EF4444]"
                                             )}
                                             style={{ height: `${clampedAdherence}%` }}
                                         />

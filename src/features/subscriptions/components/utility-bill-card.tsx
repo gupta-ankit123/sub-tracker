@@ -92,8 +92,8 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
 
     const getVarianceClass = (variance?: number) => {
         if (!variance) return ""
-        if (variance > 0) return "text-red-600"
-        if (variance < 0) return "text-green-600"
+        if (variance > 0) return "text-[#EF4444]"
+        if (variance < 0) return "text-[#00D4AA]"
         return ""
     }
 
@@ -152,7 +152,7 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
                 <CardContent className="p-4">
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
+                            <div className="p-2 rounded-lg bg-white/[0.06]">
                                 {categoryIcons[bill.category] || categoryIcons["Other"]}
                             </div>
                             <div>
@@ -184,13 +184,13 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
                     </div>
 
                     {latestEstimate && (
-                        <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                        <div className="mt-3 p-2 bg-[#3B82F6]/10 rounded-lg">
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-muted-foreground">
                                     Range: ₹{Number(latestEstimate.minAmount || 0).toFixed(0)} - ₹{Number(latestEstimate.maxAmount || 0).toFixed(0)}
                                 </span>
                                 {latestEstimate.confidenceScore && (
-                                    <span className="text-xs bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded">
+                                    <span className="text-xs bg-[#3B82F6]/15 px-2 py-0.5 rounded">
                                         {Math.round(Number(latestEstimate.confidenceScore) * 100)}% confidence
                                     </span>
                                 )}
@@ -200,7 +200,7 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
 
                     {latestEstimate?.variance !== null && latestEstimate?.variance !== undefined && (
                         <div className={`mt-2 p-2 rounded-lg flex items-center gap-2 ${
-                            Number(latestEstimate.variance) > 0 ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
+                            Number(latestEstimate.variance) > 0 ? "bg-[#EF4444]/10 text-[#EF4444]" : "bg-[#00D4AA]/10 text-[#00D4AA]"
                         }`}>
                             {Number(latestEstimate.variance) > 0 ? (
                                 <AlertCircle className="h-4 w-4" />
@@ -215,7 +215,7 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
                     )}
 
                     {accuracyData?.data && accuracyData.data.totalEstimates > 0 && (
-                        <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                        <div className="mt-2 p-2 bg-white/[0.03] rounded-lg">
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-muted-foreground">
                                     Accuracy: {accuracyData.data.accuracyPercentage.toFixed(0)}%
@@ -274,11 +274,11 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
                             />
                         </div>
                         {latestEstimate && (
-                            <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                            <div className="p-3 bg-white/[0.03] rounded-lg">
                                 <p className="text-sm text-muted-foreground">Estimated: ₹{Number(latestEstimate.estimatedAmount).toFixed(0)}</p>
                                 {recordAmount && (
                                     <p className={`text-sm font-medium mt-1 ${
-                                        parseFloat(recordAmount) > Number(latestEstimate.estimatedAmount) ? "text-red-600" : "text-green-600"
+                                        parseFloat(recordAmount) > Number(latestEstimate.estimatedAmount) ? "text-[#EF4444]" : "text-[#00D4AA]"
                                     }`}>
                                         Variance: {parseFloat(recordAmount) > Number(latestEstimate.estimatedAmount) ? "+" : ""}
                                         ₹{(parseFloat(recordAmount) - Number(latestEstimate.estimatedAmount)).toFixed(0)}
@@ -314,7 +314,7 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
                                 className="mt-1"
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="text-sm font-medium">Min Amount (₹)</label>
                                 <Input 
@@ -338,7 +338,7 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
                         </div>
                         <div>
                             <label className="text-sm font-medium">Estimation Method</label>
-                            <div className="flex gap-2 mt-2">
+                            <div className="flex flex-wrap gap-2 mt-2">
                                 <Button 
                                     size="sm" 
                                     variant={estimationMethod === "MANUAL" ? "primary" : "outline"}
@@ -402,8 +402,8 @@ export function UtilityBillCard({ bill, onRecordBill }: UtilityBillCardProps) {
                                                 })}
                                             </p>
                                             <p className={`text-sm ${
-                                                record.paymentStatus === "SUCCESS" ? "text-green-600" :
-                                                record.paymentStatus === "PENDING" ? "text-yellow-600" :
+                                                record.paymentStatus === "SUCCESS" ? "text-[#00D4AA]" :
+                                                record.paymentStatus === "PENDING" ? "text-[#F59E0B]" :
                                                 "text-muted-foreground"
                                             }`}>
                                                 {record.paymentStatus === "SUCCESS" ? "Paid" : 

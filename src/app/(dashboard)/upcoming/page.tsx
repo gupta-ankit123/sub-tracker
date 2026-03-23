@@ -29,33 +29,32 @@ export default function UpcomingPage() {
 
     if (isLoading) {
         return (
-            <div className="h-full bg-neutral-500/5 p-4 md:p-8 overflow-auto">
-                <div className="max-w-4xl mx-auto space-y-6">
+            <div className="h-full p-4 md:p-8 overflow-auto">
+                <div className="max-w-5xl mx-auto space-y-8">
+                    {/* Header skeleton */}
                     <div>
-                        <div className="h-9 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                        <div className="h-5 w-64 mt-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                        <div className="h-9 w-56 rounded-2xl bg-white/[0.06] animate-pulse" />
+                        <div className="h-5 w-72 mt-3 rounded-2xl bg-white/[0.06] animate-pulse" />
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-3">
-                        {[1, 2, 3].map((i) => (
-                            <div key={i} className="p-6 bg-white rounded-lg border">
-                                <div className="h-4 w-24 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                                <div className="h-8 w-32 mt-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                                <div className="h-4 w-20 mt-2 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                            </div>
+                    {/* Summary cards skeleton */}
+                    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="p-6 rounded-2xl bg-white/[0.06] animate-pulse h-40" />
                         ))}
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
+                    {/* Bill list skeleton */}
+                    <div className="space-y-4">
                         {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="p-6 bg-white rounded-lg border">
-                                <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                                    <div className="flex-1">
-                                        <div className="h-5 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
-                                        <div className="h-4 w-24 mt-1 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                            <div key={i} className="rounded-2xl bg-white/[0.06] animate-pulse">
+                                <div className="p-5 flex items-center gap-4">
+                                    <div className="h-10 w-10 rounded-xl bg-white/[0.06]" />
+                                    <div className="flex-1 space-y-2">
+                                        <div className="h-5 w-36 rounded-2xl bg-white/[0.06]" />
+                                        <div className="h-4 w-24 rounded-2xl bg-white/[0.06]" />
                                     </div>
-                                    <div className="h-6 w-20 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                    <div className="h-6 w-24 rounded-2xl bg-white/[0.06]" />
                                 </div>
                             </div>
                         ))}
@@ -67,7 +66,7 @@ export default function UpcomingPage() {
 
     const subscriptions: Subscription[] = data?.data || []
     const now = new Date()
-    
+
     const weekStart = startOfWeek(now)
     const weekEnd = endOfWeek(now)
     const monthStart = startOfMonth(now)
@@ -104,19 +103,22 @@ export default function UpcomingPage() {
 
     if (subscriptions.length === 0) {
         return (
-            <div className="h-full bg-neutral-500/5 p-4 md:p-8 overflow-auto">
-                <div className="max-w-4xl mx-auto">
+            <div className="h-full p-4 md:p-8 overflow-auto">
+                <div className="max-w-5xl mx-auto">
                     <div className="mb-8">
-                        <h1 className="text-3xl font-bold">Upcoming Bills</h1>
-                        <p className="text-muted-foreground mt-1">Track your upcoming payments.</p>
+                        <h1 className="text-3xl font-bold font-[family-name:var(--font-plus-jakarta)] tracking-tight">Upcoming Bills</h1>
+                        <p className="text-muted-foreground mt-2 text-[15px]">Track your upcoming payments and never miss a due date.</p>
                     </div>
-                    <div className="flex flex-col items-center justify-center p-12 bg-white rounded-lg shadow-sm border">
-                        <div className="text-center mb-6">
-                            <h3 className="text-lg font-semibold">No subscriptions yet</h3>
-                            <p className="text-muted-foreground">Add subscriptions to track upcoming bills.</p>
+                    <div className="flex flex-col items-center justify-center py-20 px-8 glass-card rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm">
+                        <div className="w-16 h-16 rounded-2xl bg-white/[0.06] flex items-center justify-center mb-6">
+                            <Calendar className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <div className="text-center mb-8">
+                            <h3 className="text-xl font-semibold font-[family-name:var(--font-plus-jakarta)]">No subscriptions yet</h3>
+                            <p className="text-muted-foreground mt-2 max-w-sm">Add your first subscription to start tracking upcoming bills and payments.</p>
                         </div>
                         <SubscriptionFormDialog>
-                            <Button>
+                            <Button className="rounded-xl px-6 h-11">
                                 <Plus className="mr-2 h-4 w-4" />
                                 Add Subscription
                             </Button>
@@ -127,125 +129,276 @@ export default function UpcomingPage() {
         )
     }
 
-    const renderBillCard = (title: string, bills: Subscription[], total: number, icon: React.ReactNode, color: string) => (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    {icon}
-                    {title}
-                </CardTitle>
-                <span className={`text-xs px-2 py-1 rounded-full ${color}`}>
-                    {bills.length} {bills.length === 1 ? 'bill' : 'bills'}
-                </span>
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">₹{total.toFixed(2)}</div>
-                {bills.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                        {bills.slice(0, 5).map((sub) => (
-                            <div key={sub.id} className="flex items-center justify-between text-sm">
-                                <div className="flex items-center gap-2">
-                                    {sub.logoUrl ? (
-                                        <img src={sub.logoUrl} alt={sub.name} className="w-6 h-6 rounded" />
-                                    ) : (
-                                        <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-xs font-bold">
-                                            {sub.name.charAt(0)}
-                                        </div>
-                                    )}
-                                    <span>{sub.name}</span>
-                                </div>
-                                <div className="text-right">
-                                    <span className="font-medium">₹{Number(sub.amount).toFixed(2)}</span>
-                                    <span className="text-muted-foreground ml-2 text-xs">
-                                        {new Date(sub.nextBillingDate).toLocaleDateString()}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-    )
+    // Compute "later this month" bills: due this month but NOT this week and NOT overdue
+    const laterThisMonth = dueThisMonth.filter(sub => {
+        const billingDate = parseISO(sub.nextBillingDate)
+        const isOverdue = isBefore(billingDate, now)
+        const isDueThisWeek = isWithinInterval(billingDate, { start: weekStart, end: weekEnd })
+        return !isOverdue && !isDueThisWeek
+    })
+
+    const getDaysUntil = (dateStr: string) => {
+        const date = parseISO(dateStr)
+        const diffTime = date.getTime() - now.getTime()
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    }
+
+    const formatDueLabel = (dateStr: string) => {
+        const days = getDaysUntil(dateStr)
+        if (days === 0) return "Due today"
+        if (days === 1) return "Due in 1 day"
+        return `Due in ${days} days`
+    }
 
     return (
-        <div className="h-full bg-neutral-500/5 p-4 md:p-8 overflow-auto">
-            <div className="max-w-4xl mx-auto">
-                <div className="mb-8 flex items-center justify-between">
+        <div className="h-full p-4 md:p-8 overflow-auto">
+            <div className="max-w-6xl mx-auto space-y-10">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold">Upcoming Bills</h1>
-                        <p className="text-muted-foreground mt-1">Track your upcoming payments.</p>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold font-[family-name:var(--font-plus-jakarta)] tracking-tight">
+                            Upcoming Bills
+                        </h1>
+                        <p className="text-muted-foreground mt-1 text-sm sm:text-[15px]">
+                            Track your upcoming payments and never miss a due date.
+                        </p>
                     </div>
                     <SubscriptionFormDialog>
-                        <Button>
+                        <Button className="rounded-xl px-5 h-10 font-medium">
                             <Plus className="mr-2 h-4 w-4" />
                             Add Subscription
                         </Button>
                     </SubscriptionFormDialog>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2 mb-6">
-                    {renderBillCard(
-                        "Overdue", 
-                        overdue, 
-                        totalOverdue, 
-                        <AlertCircle className="h-4 w-4 text-red-500" />,
-                        "bg-red-100 text-red-700"
-                    )}
-                    {renderBillCard(
-                        "Due This Week", 
-                        dueThisWeek, 
-                        totalDueThisWeek, 
-                        <Clock className="h-4 w-4 text-orange-500" />,
-                        "bg-orange-100 text-orange-700"
-                    )}
-                    {renderBillCard(
-                        "Due This Month", 
-                        dueThisMonth, 
-                        totalDueThisMonth, 
-                        <Calendar className="h-4 w-4 text-blue-500" />,
-                        "bg-blue-100 text-blue-700"
-                    )}
-                    {renderBillCard(
-                        "Next 30 Days", 
-                        dueNext30Days, 
-                        dueNext30Days.reduce((sum, sub) => sum + Number(sub.amount), 0), 
-                        <Calendar className="h-4 w-4 text-green-500" />,
-                        "bg-green-100 text-green-700"
-                    )}
-                </div>
+                {/* Summary Stat Cards */}
+                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* Overdue */}
+                    <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-[#EF4444]/10 blur-3xl -mr-8 -mt-8" />
+                        <p className="text-muted-foreground text-sm font-medium mb-1">Overdue</p>
+                        <div className="flex items-end justify-between">
+                            <div>
+                                <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)] text-[#EF4444]">
+                                    ₹{totalOverdue.toFixed(2)}
+                                </h3>
+                                <p className="text-xs text-muted-foreground">
+                                    {overdue.length} {overdue.length === 1 ? "Bill" : "Bills"} pending
+                                </p>
+                            </div>
+                            <div className="p-2 bg-[#EF4444]/15 rounded-xl">
+                                <AlertCircle className="h-5 w-5 text-[#EF4444]" />
+                            </div>
+                        </div>
+                    </div>
 
+                    {/* Due This Week */}
+                    <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-[#F59E0B]/10 blur-3xl -mr-8 -mt-8" />
+                        <p className="text-muted-foreground text-sm font-medium mb-1">Due This Week</p>
+                        <div className="flex items-end justify-between">
+                            <div>
+                                <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)] text-[#F59E0B]">
+                                    ₹{totalDueThisWeek.toFixed(2)}
+                                </h3>
+                                <p className="text-xs text-muted-foreground">
+                                    {dueThisWeek.length} {dueThisWeek.length === 1 ? "Bill" : "Bills"} arriving
+                                </p>
+                            </div>
+                            <div className="p-2 bg-[#F59E0B]/15 rounded-xl">
+                                <Clock className="h-5 w-5 text-[#F59E0B]" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Due This Month */}
+                    <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-[#3B82F6]/10 blur-3xl -mr-8 -mt-8" />
+                        <p className="text-muted-foreground text-sm font-medium mb-1">Due This Month</p>
+                        <div className="flex items-end justify-between">
+                            <div>
+                                <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)] text-[#3B82F6]">
+                                    ₹{totalDueThisMonth.toFixed(2)}
+                                </h3>
+                                <p className="text-xs text-muted-foreground">
+                                    {dueThisMonth.length} {dueThisMonth.length === 1 ? "Bill" : "Bills"} scheduled
+                                </p>
+                            </div>
+                            <div className="p-2 bg-[#3B82F6]/15 rounded-xl">
+                                <Calendar className="h-5 w-5 text-[#3B82F6]" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Next 30 Days */}
+                    <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-[#00D4AA]/10 blur-3xl -mr-8 -mt-8" />
+                        <p className="text-muted-foreground text-sm font-medium mb-1">Next 30 Days</p>
+                        <div className="flex items-end justify-between">
+                            <div>
+                                <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)] text-[#00D4AA]">
+                                    ₹{dueNext30Days.reduce((sum, sub) => sum + Number(sub.amount), 0).toFixed(2)}
+                                </h3>
+                                <p className="text-xs text-muted-foreground">
+                                    {dueNext30Days.length} {dueNext30Days.length === 1 ? "Bill" : "Bills"} upcoming
+                                </p>
+                            </div>
+                            <div className="p-2 bg-[#00D4AA]/15 rounded-xl">
+                                <Calendar className="h-5 w-5 text-[#00D4AA]" />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Overdue Payments Section */}
                 {overdue.length > 0 && (
-                    <div className="mb-6">
-                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-red-600">
-                            <AlertCircle className="h-5 w-5" />
-                            Overdue Bills
-                        </h2>
-                        <div className="space-y-2">
+                    <section className="space-y-4">
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-[#EF4444]" />
+                            <h2 className="text-lg font-bold font-[family-name:var(--font-plus-jakarta)] tracking-tight">
+                                Overdue Payments
+                            </h2>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {overdue.map((sub) => (
-                                <div key={sub.id} className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
-                                    <div className="flex items-center gap-3">
+                                <div
+                                    key={sub.id}
+                                    className="glass-card rounded-2xl p-5 border-[#EF4444]/20 bg-[#EF4444]/5 relative overflow-hidden flex flex-col sm:flex-row gap-5 items-start sm:items-center"
+                                >
+                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#EF4444]" />
+                                    <div className="w-14 h-14 rounded-2xl bg-[#1b1f2b] flex items-center justify-center border border-white/[0.06] shrink-0 shadow-lg">
                                         {sub.logoUrl ? (
-                                            <img src={sub.logoUrl} alt={sub.name} className="w-10 h-10 rounded" />
+                                            <img src={sub.logoUrl} alt={sub.name} className="w-10 h-10 rounded-lg object-cover" />
                                         ) : (
-                                            <div className="w-10 h-10 rounded bg-red-100 flex items-center justify-center text-lg font-bold text-red-600">
-                                                {sub.name.charAt(0)}
-                                            </div>
+                                            <span className="text-xl font-bold text-[#EF4444]">{sub.name.charAt(0)}</span>
                                         )}
-                                        <div>
-                                            <p className="font-semibold">{sub.name}</p>
-                                            <p className="text-sm text-red-600">
-                                                Was due: {new Date(sub.nextBillingDate).toLocaleDateString()}
-                                            </p>
+                                    </div>
+                                    <div className="flex-grow">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <h4 className="font-bold text-lg font-[family-name:var(--font-plus-jakarta)]">{sub.name}</h4>
+                                            <span className="text-[#EF4444] font-bold text-lg">₹{Number(sub.amount).toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xs font-bold text-[#EF4444] uppercase tracking-wider">
+                                                Was due: {new Date(sub.nextBillingDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                            </span>
+                                            <span className="h-1 w-1 rounded-full bg-white/20" />
+                                            <span className="text-xs text-muted-foreground">{sub.billingCycle}</span>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="font-bold text-lg text-red-600">₹{Number(sub.amount).toFixed(2)}</p>
+                                    <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
+                                        <Button size="sm" className="flex-1 sm:flex-none bg-[#EF4444] hover:bg-[#EF4444]/90 text-white font-bold rounded-xl text-xs">
+                                            Pay Now
+                                        </Button>
+                                        <Button size="sm" variant="ghost" className="flex-1 sm:flex-none bg-white/5 text-muted-foreground font-bold rounded-xl text-xs hover:bg-white/10">
+                                            Remind Me
+                                        </Button>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </section>
+                )}
+
+                {/* Due This Week Section */}
+                {dueThisWeek.length > 0 && (
+                    <section className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />
+                                <h2 className="text-lg font-bold font-[family-name:var(--font-plus-jakarta)] tracking-tight">
+                                    Due This Week
+                                </h2>
+                            </div>
+                            <button className="text-xs font-bold text-[#00D4AA] uppercase tracking-widest hover:underline transition-all">
+                                View All
+                            </button>
+                        </div>
+                        <div className="space-y-3">
+                            {dueThisWeek.map((sub) => (
+                                <div
+                                    key={sub.id}
+                                    className="glass-card rounded-2xl p-4 flex flex-col lg:flex-row items-center gap-4 hover:bg-white/[0.04] transition-colors group"
+                                >
+                                    <div className="flex items-center gap-4 flex-grow w-full">
+                                        <div className="w-12 h-12 rounded-xl bg-[#1b1f2b] flex items-center justify-center border border-white/[0.06] group-hover:border-[#00D4AA]/30 transition-colors">
+                                            {sub.logoUrl ? (
+                                                <img src={sub.logoUrl} alt={sub.name} className="w-8 h-8 rounded object-cover" />
+                                            ) : (
+                                                <span className="text-sm font-bold text-[#F59E0B]">{sub.name.charAt(0)}</span>
+                                            )}
+                                        </div>
+                                        <div className="flex-grow">
+                                            <h4 className="font-bold text-base font-[family-name:var(--font-plus-jakarta)]">{sub.name}</h4>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-xs text-muted-foreground">{formatDueLabel(sub.nextBillingDate)}</span>
+                                                <span className="h-0.5 w-0.5 rounded-full bg-white/20" />
+                                                <span className="text-xs text-muted-foreground">
+                                                    {new Date(sub.nextBillingDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between w-full lg:w-auto gap-8">
+                                        <div className="text-right">
+                                            <p className="font-bold text-lg">₹{Number(sub.amount).toFixed(2)}</p>
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-black tracking-tighter ${
+                                                sub.autoRenew
+                                                    ? "bg-[#3B82F6]/10 text-[#3B82F6]"
+                                                    : "bg-[#F59E0B]/10 text-[#F59E0B]"
+                                            }`}>
+                                                {sub.autoRenew ? "Auto-Pay On" : "Action Required"}
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button size="sm" className="px-5 py-2.5 bg-[#00D4AA] text-[#00382b] font-bold rounded-xl text-xs hover:shadow-[0_0_20px_rgba(0,212,170,0.3)]">
+                                                Mark as Paid
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* Later This Month Section */}
+                {laterThisMonth.length > 0 && (
+                    <section className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-[#3B82F6]" />
+                                <h2 className="text-lg font-bold font-[family-name:var(--font-plus-jakarta)] tracking-tight">
+                                    Later This Month
+                                </h2>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {laterThisMonth.map((sub) => (
+                                <div
+                                    key={sub.id}
+                                    className="glass-card rounded-2xl p-4 flex items-center justify-between hover:border-[#00D4AA]/20 transition-all cursor-pointer group"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-lg bg-[#1b1f2b] flex items-center justify-center border border-white/[0.06]">
+                                            {sub.logoUrl ? (
+                                                <img src={sub.logoUrl} alt={sub.name} className="w-6 h-6 rounded object-cover" />
+                                            ) : (
+                                                <span className="text-xs font-bold text-[#3B82F6]">{sub.name.charAt(0)}</span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h5 className="font-bold text-sm font-[family-name:var(--font-plus-jakarta)]">{sub.name}</h5>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                {new Date(sub.nextBillingDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} &bull; {sub.billingCycle}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <p className="font-bold">₹{Number(sub.amount).toFixed(2)}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
                 )}
             </div>
         </div>

@@ -4,10 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -21,7 +18,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { User, Bell, Globe, LogOut, KeyRound, Loader2 } from "lucide-react"
+import { User, Bell, Globe, LogOut, KeyRound, Loader2, Trash2, AlertTriangle, HelpCircle, Settings } from "lucide-react"
 import { useCurrent } from "@/features/auth/api/use-current"
 import { useLogout } from "@/features/auth/api/use-logout"
 import { useUpdateProfile } from "@/features/auth/api/use-update-profile"
@@ -113,7 +110,7 @@ export function SettingsContent() {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <Loader2 className="h-8 w-8 animate-spin text-[#00D4AA]" />
             </div>
         )
     }
@@ -121,248 +118,324 @@ export function SettingsContent() {
     if (!user) return null
 
     return (
-        <div className="h-full bg-neutral-500/5 p-4 md:p-8 overflow-auto">
-            <div className="max-w-4xl mx-auto">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold">Settings</h1>
-                    <p className="text-muted-foreground mt-1">Manage your account settings and preferences.</p>
+        <div className="h-full bg-transparent p-4 md:p-8 lg:p-12 overflow-auto">
+            <div className="max-w-5xl mx-auto w-full">
+                {/* Page Header */}
+                <div className="mb-12">
+                    <h1 className="text-4xl font-extrabold font-[family-name:var(--font-plus-jakarta)] tracking-tight mb-2">
+                        Settings
+                    </h1>
+                    <p className="text-muted-foreground">
+                        Manage your account preferences and security settings.
+                    </p>
                 </div>
 
-                <div className="space-y-6">
-                    {/* Profile Card */}
-                    <Card>
-                        <CardHeader className="flex flex-row items-center gap-2">
-                            <User className="h-5 w-5" />
-                            <div>
-                                <CardTitle>Profile</CardTitle>
-                                <CardDescription>Manage your personal information</CardDescription>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    {/* Left Column: Primary Sections */}
+                    <div className="lg:col-span-8 space-y-8">
+                        {/* Profile Section */}
+                        <section className="bg-[rgba(27,31,43,0.6)] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-8">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-12 rounded-xl bg-[#00D4AA]/10 flex items-center justify-center">
+                                    <User className="h-5 w-5 text-[#00D4AA]" />
+                                </div>
+                                <h2 className="text-xl font-bold font-[family-name:var(--font-plus-jakarta)]">Profile Details</h2>
                             </div>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={profileForm.handleSubmit(handleProfileSubmit)} className="space-y-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">Name</Label>
-                                    <Input id="name" {...profileForm.register("name")} />
-                                    {profileForm.formState.errors.name && (
-                                        <p className="text-sm text-red-500">{profileForm.formState.errors.name.message}</p>
-                                    )}
+                            <form onSubmit={profileForm.handleSubmit(handleProfileSubmit)}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                            Full Name
+                                        </label>
+                                        <Input
+                                            id="name"
+                                            {...profileForm.register("name")}
+                                            className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 h-auto"
+                                        />
+                                        {profileForm.formState.errors.name && (
+                                            <p className="text-sm text-[#EF4444]">{profileForm.formState.errors.name.message}</p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                            Email Address
+                                        </label>
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            defaultValue={user.email}
+                                            disabled
+                                            className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 h-auto opacity-50 cursor-not-allowed"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input id="email" type="email" defaultValue={user.email} disabled />
-                                    <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                            Phone
+                                        </label>
+                                        <Input
+                                            id="phone"
+                                            {...profileForm.register("phone")}
+                                            placeholder="Optional"
+                                            className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 h-auto"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="phone">Phone</Label>
-                                    <Input id="phone" {...profileForm.register("phone")} placeholder="Optional" />
+                                <div className="mt-8 flex justify-end">
+                                    <button
+                                        type="submit"
+                                        disabled={updateProfileMutation.isPending}
+                                        className="px-8 py-3 bg-[#00D4AA] text-black font-bold rounded-xl hover:shadow-[0_0_20px_rgba(70,241,197,0.2)] transition-all duration-300 disabled:opacity-50"
+                                    >
+                                        {updateProfileMutation.isPending ? (
+                                            <span className="flex items-center gap-2">
+                                                <Loader2 className="h-4 w-4 animate-spin" /> Saving...
+                                            </span>
+                                        ) : (
+                                            "Save Changes"
+                                        )}
+                                    </button>
                                 </div>
-                                <Button type="submit" disabled={updateProfileMutation.isPending}>
-                                    {updateProfileMutation.isPending ? (
-                                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
-                                    ) : (
-                                        "Save Changes"
-                                    )}
-                                </Button>
                             </form>
-                        </CardContent>
-                    </Card>
+                        </section>
 
-                    {/* Regional Settings Card */}
-                    <Card>
-                        <CardHeader className="flex flex-row items-center gap-2">
-                            <Globe className="h-5 w-5" />
-                            <div>
-                                <CardTitle>Regional Settings</CardTitle>
-                                <CardDescription>Customize your regional preferences</CardDescription>
+                        {/* Preferences Section */}
+                        <section className="bg-[rgba(27,31,43,0.6)] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-8">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-12 rounded-xl bg-[#3B82F6]/10 flex items-center justify-center">
+                                    <Settings className="h-5 w-5 text-[#3B82F6]" />
+                                </div>
+                                <h2 className="text-xl font-bold font-[family-name:var(--font-plus-jakarta)]">Preferences</h2>
                             </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid gap-2">
-                                <Label>Currency</Label>
-                                <Select value={currentCurrency} onValueChange={setCurrency}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="INR">Indian Rupee (INR)</SelectItem>
-                                        <SelectItem value="USD">US Dollar (USD)</SelectItem>
-                                        <SelectItem value="EUR">Euro (EUR)</SelectItem>
-                                        <SelectItem value="GBP">British Pound (GBP)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Timezone</Label>
-                                <Select value={currentTimezone} onValueChange={setTimezone}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST)</SelectItem>
-                                        <SelectItem value="America/New_York">America/New_York (EST)</SelectItem>
-                                        <SelectItem value="Europe/London">Europe/London (GMT)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <Button onClick={handleRegionalSave} disabled={updateSettingsMutation.isPending}>
-                                {updateSettingsMutation.isPending ? (
-                                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
-                                ) : (
-                                    "Save Preferences"
-                                )}
-                            </Button>
-                        </CardContent>
-                    </Card>
+                            <div className="space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                            Primary Currency
+                                        </label>
+                                        <Select value={currentCurrency} onValueChange={setCurrency}>
+                                            <SelectTrigger className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 h-auto">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                                                <SelectItem value="USD">USD - US Dollar</SelectItem>
+                                                <SelectItem value="EUR">EUR - Euro</SelectItem>
+                                                <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                            Timezone
+                                        </label>
+                                        <Select value={currentTimezone} onValueChange={setTimezone}>
+                                            <SelectTrigger className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 h-auto">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST)</SelectItem>
+                                                <SelectItem value="America/New_York">America/New_York (EST)</SelectItem>
+                                                <SelectItem value="Europe/London">Europe/London (GMT)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
 
-                    {/* Notifications Card */}
-                    <Card>
-                        <CardHeader className="flex flex-row items-center gap-2">
-                            <Bell className="h-5 w-5" />
-                            <div>
-                                <CardTitle>Notifications</CardTitle>
-                                <CardDescription>Manage your notification preferences</CardDescription>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                    <Label>Email Notifications</Label>
-                                    <p className="text-sm text-muted-foreground">Receive billing reminders via email</p>
+                                {/* Reminder Days */}
+                                <div className="space-y-2 max-w-xs">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                        Reminder Days Before
+                                    </label>
+                                    <Select value={currentReminderDays} onValueChange={setReminderDays}>
+                                        <SelectTrigger className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 h-auto">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="1">1 day before</SelectItem>
+                                            <SelectItem value="3">3 days before</SelectItem>
+                                            <SelectItem value="7">7 days before</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                                <Switch
-                                    checked={currentEmailNotifications}
-                                    onCheckedChange={setEmailNotifications}
-                                />
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                    <Label>Push Notifications</Label>
-                                    <p className="text-sm text-muted-foreground">Receive push notifications</p>
-                                </div>
-                                <Switch
-                                    checked={currentPushNotifications}
-                                    onCheckedChange={setPushNotifications}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Reminder Days Before</Label>
-                                <Select value={currentReminderDays} onValueChange={setReminderDays}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="1">1 day before</SelectItem>
-                                        <SelectItem value="3">3 days before</SelectItem>
-                                        <SelectItem value="7">7 days before</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <Button onClick={handleNotificationsSave} disabled={updateSettingsMutation.isPending}>
-                                {updateSettingsMutation.isPending ? (
-                                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
-                                ) : (
-                                    "Save Preferences"
-                                )}
-                            </Button>
-                        </CardContent>
-                    </Card>
 
-                    {/* Change Password Card */}
-                    <Card>
-                        <CardHeader className="flex flex-row items-center gap-2">
-                            <KeyRound className="h-5 w-5" />
-                            <div>
-                                <CardTitle>Change Password</CardTitle>
-                                <CardDescription>Update your account password</CardDescription>
+                                {/* Email Notifications Toggle */}
+                                <div className="flex items-center justify-between p-4 bg-white/[0.04] rounded-xl">
+                                    <div className="flex items-center gap-3">
+                                        <Bell className="h-5 w-5 text-[#00D4AA]" />
+                                        <div>
+                                            <p className="text-sm font-bold">Email Notifications</p>
+                                            <p className="text-xs text-muted-foreground">Receive weekly summaries and payment alerts</p>
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={currentEmailNotifications}
+                                        onCheckedChange={setEmailNotifications}
+                                    />
+                                </div>
+
+                                {/* Push Notifications Toggle */}
+                                <div className="flex items-center justify-between p-4 bg-white/[0.04] rounded-xl">
+                                    <div className="flex items-center gap-3">
+                                        <Bell className="h-5 w-5 text-[#00D4AA]" />
+                                        <div>
+                                            <p className="text-sm font-bold">Push Notifications</p>
+                                            <p className="text-xs text-muted-foreground">Receive push notifications for upcoming bills</p>
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={currentPushNotifications}
+                                        onCheckedChange={setPushNotifications}
+                                    />
+                                </div>
+
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={() => {
+                                            handleRegionalSave()
+                                            handleNotificationsSave()
+                                        }}
+                                        disabled={updateSettingsMutation.isPending}
+                                        className="px-8 py-3 bg-[#00D4AA] text-black font-bold rounded-xl hover:shadow-[0_0_20px_rgba(70,241,197,0.2)] transition-all duration-300 disabled:opacity-50"
+                                    >
+                                        {updateSettingsMutation.isPending ? (
+                                            <span className="flex items-center gap-2">
+                                                <Loader2 className="h-4 w-4 animate-spin" /> Saving...
+                                            </span>
+                                        ) : (
+                                            "Save Preferences"
+                                        )}
+                                    </button>
+                                </div>
                             </div>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={passwordForm.handleSubmit(handlePasswordSubmit)} className="space-y-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="currentPassword">Current Password</Label>
-                                    <Input
-                                        id="currentPassword"
-                                        type="password"
-                                        {...passwordForm.register("currentPassword")}
-                                    />
-                                    {passwordForm.formState.errors.currentPassword && (
-                                        <p className="text-sm text-red-500">
-                                            {passwordForm.formState.errors.currentPassword.message}
-                                        </p>
-                                    )}
+                        </section>
+
+                        {/* Security Section */}
+                        <section className="bg-[rgba(27,31,43,0.6)] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-8">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-12 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center">
+                                    <KeyRound className="h-5 w-5 text-[#8B5CF6]" />
                                 </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="newPassword">New Password</Label>
-                                    <Input
-                                        id="newPassword"
-                                        type="password"
-                                        {...passwordForm.register("newPassword")}
-                                    />
-                                    {passwordForm.formState.errors.newPassword && (
-                                        <p className="text-sm text-red-500">
-                                            {passwordForm.formState.errors.newPassword.message}
-                                        </p>
-                                    )}
+                                <h2 className="text-xl font-bold font-[family-name:var(--font-plus-jakarta)]">Security</h2>
+                            </div>
+                            <form onSubmit={passwordForm.handleSubmit(handlePasswordSubmit)}>
+                                <div className="grid grid-cols-1 gap-6 max-w-md">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                            Current Password
+                                        </label>
+                                        <Input
+                                            id="currentPassword"
+                                            type="password"
+                                            placeholder="••••••••"
+                                            {...passwordForm.register("currentPassword")}
+                                            className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 h-auto"
+                                        />
+                                        {passwordForm.formState.errors.currentPassword && (
+                                            <p className="text-sm text-[#EF4444]">
+                                                {passwordForm.formState.errors.currentPassword.message}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                                New Password
+                                            </label>
+                                            <Input
+                                                id="newPassword"
+                                                type="password"
+                                                placeholder="••••••••"
+                                                {...passwordForm.register("newPassword")}
+                                                className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 h-auto"
+                                            />
+                                            {passwordForm.formState.errors.newPassword && (
+                                                <p className="text-sm text-[#EF4444]">
+                                                    {passwordForm.formState.errors.newPassword.message}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                                Confirm New Password
+                                            </label>
+                                            <Input
+                                                id="confirmPassword"
+                                                type="password"
+                                                placeholder="••••••••"
+                                                {...passwordForm.register("confirmPassword")}
+                                                className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 h-auto"
+                                            />
+                                            {passwordForm.formState.errors.confirmPassword && (
+                                                <p className="text-sm text-[#EF4444]">
+                                                    {passwordForm.formState.errors.confirmPassword.message}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="pt-4">
+                                        <button
+                                            type="submit"
+                                            disabled={changePasswordMutation.isPending}
+                                            className="px-6 py-3 border border-white/[0.12] text-white font-bold rounded-xl hover:bg-white/[0.06] transition-colors disabled:opacity-50"
+                                        >
+                                            {changePasswordMutation.isPending ? (
+                                                <span className="flex items-center gap-2">
+                                                    <Loader2 className="h-4 w-4 animate-spin" /> Changing...
+                                                </span>
+                                            ) : (
+                                                "Update Password"
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                                    <Input
-                                        id="confirmPassword"
-                                        type="password"
-                                        {...passwordForm.register("confirmPassword")}
-                                    />
-                                    {passwordForm.formState.errors.confirmPassword && (
-                                        <p className="text-sm text-red-500">
-                                            {passwordForm.formState.errors.confirmPassword.message}
-                                        </p>
-                                    )}
-                                </div>
-                                <Button type="submit" disabled={changePasswordMutation.isPending}>
-                                    {changePasswordMutation.isPending ? (
-                                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Changing...</>
-                                    ) : (
-                                        "Change Password"
-                                    )}
-                                </Button>
                             </form>
-                        </CardContent>
-                    </Card>
+                        </section>
+                    </div>
 
-                    {/* Account Card */}
-                    <Card>
-                        <CardHeader className="flex flex-row items-center gap-2">
-                            <LogOut className="h-5 w-5" />
-                            <div>
-                                <CardTitle>Account</CardTitle>
-                                <CardDescription>Manage your account</CardDescription>
+                    {/* Right Column: Account Management */}
+                    <div className="lg:col-span-4 space-y-8">
+                        {/* Session Management Card */}
+                        <div className="bg-[rgba(27,31,43,0.6)] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-8 flex flex-col items-center text-center">
+                            <div className="w-16 h-16 rounded-full bg-white/[0.06] flex items-center justify-center mb-6">
+                                <LogOut className="h-7 w-7 text-white" />
                             </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                                <div>
-                                    <p className="font-medium">Sign Out</p>
-                                    <p className="text-sm text-muted-foreground">Sign out of your account</p>
+                            <h3 className="text-lg font-bold font-[family-name:var(--font-plus-jakarta)] mb-2">Session Management</h3>
+                            <p className="text-sm text-muted-foreground mb-6">
+                                Signed in as {user.email}
+                            </p>
+                            <button
+                                onClick={() => logoutMutation.mutate()}
+                                disabled={logoutMutation.isPending}
+                                className="w-full py-3 border border-white/[0.12] text-white font-bold rounded-xl hover:bg-white/[0.06] transition-colors disabled:opacity-50"
+                            >
+                                {logoutMutation.isPending ? (
+                                    <span className="flex items-center justify-center gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin" /> Signing Out...
+                                    </span>
+                                ) : (
+                                    "Sign Out"
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Danger Zone Card */}
+                        <div className="rounded-2xl p-8 border border-[#EF4444]/20 bg-gradient-to-br from-[#EF4444]/5 to-transparent relative overflow-hidden">
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-3 text-[#EF4444] mb-4">
+                                    <AlertTriangle className="h-5 w-5" />
+                                    <h3 className="font-bold font-[family-name:var(--font-plus-jakarta)] uppercase tracking-wider text-xs">Danger Zone</h3>
                                 </div>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => logoutMutation.mutate()}
-                                    disabled={logoutMutation.isPending}
-                                >
-                                    {logoutMutation.isPending ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        "Sign Out"
-                                    )}
-                                </Button>
-                            </div>
-                            <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-950 rounded-lg">
-                                <div>
-                                    <p className="font-medium text-red-600">Delete Account</p>
-                                    <p className="text-sm text-muted-foreground">Permanently delete your account and all data</p>
-                                </div>
+                                <h3 className="text-lg font-bold font-[family-name:var(--font-plus-jakarta)] mb-2">Delete Account</h3>
+                                <p className="text-sm text-muted-foreground mb-6">
+                                    Once deleted, all your data, subscription history, and preferences will be permanently removed. This action cannot be undone.
+                                </p>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="destructive">Delete</Button>
+                                        <button className="w-full py-3 bg-[#EF4444]/10 text-[#EF4444] border border-[#EF4444]/20 font-bold rounded-xl hover:bg-[#EF4444]/20 transition-all disabled:opacity-50">
+                                            Delete Account
+                                        </button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
@@ -388,8 +461,29 @@ export function SettingsContent() {
                                     </AlertDialogContent>
                                 </AlertDialog>
                             </div>
-                        </CardContent>
-                    </Card>
+                            {/* Subtle red background glow */}
+                            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-[#EF4444]/10 blur-[40px] rounded-full"></div>
+                        </div>
+
+                        {/* Help & Support Card */}
+                        <div className="bg-[rgba(27,31,43,0.6)] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6 flex items-start gap-4">
+                            <div className="p-3 bg-[#00D4AA]/10 rounded-lg">
+                                <HelpCircle className="h-5 w-5 text-[#00D4AA]" />
+                            </div>
+                            <div>
+                                <h4 className="font-bold font-[family-name:var(--font-plus-jakarta)] text-sm mb-1">Need help?</h4>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Check our documentation or contact support for billing inquiries.
+                                </p>
+                                <a
+                                    href="#"
+                                    className="inline-block mt-3 text-xs font-bold text-[#00D4AA] underline decoration-[#00D4AA]/30 underline-offset-4 hover:decoration-[#00D4AA] transition-all"
+                                >
+                                    Visit Help Center
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

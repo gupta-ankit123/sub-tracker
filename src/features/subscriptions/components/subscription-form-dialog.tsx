@@ -229,7 +229,7 @@ export function SubscriptionFormDialog({ children, subscription, onSuccess }: Su
                                 Pick a category to see popular subscriptions.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                             {SUBSCRIPTION_CATEGORIES.map((cat) => {
                                 const count = POPULAR_SUBSCRIPTIONS[cat]?.length || 0
                                 return (
@@ -264,7 +264,7 @@ export function SubscriptionFormDialog({ children, subscription, onSuccess }: Su
                                 Select a service or add a custom one.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                             {popularList.map((sub) => (
                                 <button
                                     key={sub.name}
@@ -413,7 +413,7 @@ export function SubscriptionFormDialog({ children, subscription, onSuccess }: Su
                                             </div>
                                         )}
 
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <FormField
                                                 control={form.control as any}
                                                 name="amount"

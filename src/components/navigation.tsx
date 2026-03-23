@@ -1,80 +1,47 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { SettingsIcon, CreditCardIcon, CalendarIcon, BarChart3Icon, ClockIcon, ListIcon, Zap, WalletIcon } from "lucide-react"
+import { SettingsIcon, CreditCardIcon, CalendarIcon, BarChart3Icon, ClockIcon, ListIcon, Zap, WalletIcon, LayoutDashboard } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { GoCheckCircle, GoCheckCircleFill, GoHome, GoHomeFill, GoReport, GoCreditCard } from "react-icons/go"
 
 const routes = [
-    {
-        label: "Dashboard",
-        href: "/dashboard",
-        icon: GoHome,
-        activeIcon: GoHomeFill
-    },
-    {
-        label: "All Subscriptions",
-        href: "/subscriptions",
-        icon: ListIcon,
-        activeIcon: GoCheckCircleFill
-    },
-    {
-        label: "Utility Bills",
-        href: "/utility-bills",
-        icon: Zap,
-        activeIcon: Zap
-    },
-    {
-        label: "Upcoming Bills",
-        href: "/upcoming",
-        icon: ClockIcon,
-        activeIcon: ClockIcon
-    },
-    {
-        label: "Billing History",
-        href: "/billing-history",
-        icon: GoCreditCard,
-        activeIcon: CreditCardIcon
-    },
-    {
-        label: "Analytics",
-        href: "/analytics",
-        icon: GoReport,
-        activeIcon: BarChart3Icon
-    },
-    {
-        label: "Budgets",
-        href: "/budgets",
-        icon: WalletIcon,
-        activeIcon: WalletIcon
-    },
-    {
-        label: "Settings",
-        href: "/settings",
-        icon: SettingsIcon,
-        activeIcon: SettingsIcon
-    },
+    { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+    { label: "All Subscriptions", href: "/subscriptions", icon: ListIcon },
+    { label: "Utility Bills", href: "/utility-bills", icon: Zap },
+    { label: "Upcoming Bills", href: "/upcoming", icon: ClockIcon },
+    { label: "Billing History", href: "/billing-history", icon: CreditCardIcon },
+    { label: "Analytics", href: "/analytics", icon: BarChart3Icon },
+    { label: "Budgets", href: "/budgets", icon: WalletIcon },
+    { label: "Settings", href: "/settings", icon: SettingsIcon },
 ]
 
 export const Navigation = () => {
     const pathname = usePathname()
 
     return (
-        <ul className="flex flex-col">
+        <ul className="flex flex-col gap-1">
             {routes.map((item) => {
                 const isActive = pathname === item.href
-                const Icon = isActive ? item.activeIcon : item.icon
+                const Icon = item.icon
                 return (
-                    <Link key={item.href} href={item.href}>
-                        <div className={cn(
-                            "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-neutral-500",
-                            isActive && "bg-white shadow-sm hover:opacity-100 text-primary"
-                        )}>
-                            <Icon className="size-5 text-neutral-500" />
-                            {item.label}
-                        </div>
-                    </Link>
+                    <li key={item.href}>
+                        <Link
+                            href={item.href}
+                            className={cn(
+                                "group flex items-center gap-3 py-3 px-4 text-sm font-medium transition-all duration-200",
+                                isActive
+                                    ? "bg-[#00D4AA]/[0.12] text-[#00D4AA] border-r-4 border-[#00D4AA] rounded-r-lg translate-x-0.5"
+                                    : "text-slate-400 hover:bg-white/[0.04] hover:text-white rounded-xl"
+                            )}
+                        >
+                            <Icon className={cn(
+                                "size-[18px] transition-colors duration-200 shrink-0",
+                                isActive ? "text-[#00D4AA]" : "text-slate-500 group-hover:text-slate-300"
+                            )} />
+                            <span className="font-[family-name:var(--font-manrope)]">{item.label}</span>
+                        </Link>
+                    </li>
                 )
             })}
         </ul>
