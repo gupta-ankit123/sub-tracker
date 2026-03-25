@@ -202,9 +202,9 @@
   <h1>Sub<span>Tracker</span> Project Tracker</h1>
   <p>Full-stack subscription & utility bill management app for the Indian market</p>
   <div class="header-meta">
-    <div class="meta-item"><div class="meta-dot" style="background:var(--teal)"></div> Branch: feature/frontend-redesign</div>
+    <div class="meta-item"><div class="meta-dot" style="background:var(--teal)"></div> Branch: hotfix/modularising-ui</div>
     <div class="meta-item"><div class="meta-dot" style="background:var(--blue)"></div> Stack: Next.js 16 + Hono + Prisma + PostgreSQL</div>
-    <div class="meta-item"><div class="meta-dot" style="background:var(--purple)"></div> Last Updated: March 23, 2026</div>
+    <div class="meta-item"><div class="meta-dot" style="background:var(--purple)"></div> Last Updated: March 25, 2026</div>
   </div>
 </div>
 
@@ -256,6 +256,8 @@
 <div class="tabs">
   <button class="tab active" onclick="showTab('built')">What's Built</button>
   <button class="tab" onclick="showTab('partial')">Needs Work</button>
+  <button class="tab" onclick="showTab('mvp')">MVP Pipeline</button>
+  <button class="tab" onclick="showTab('ux')">UX Improvements</button>
   <button class="tab" onclick="showTab('roadmap')">Roadmap</button>
   <button class="tab" onclick="showTab('debt')">Tech Debt</button>
   <button class="tab" onclick="showTab('stack')">Tech Stack</button>
@@ -436,6 +438,216 @@
       <tr><td>Payment Gateway</td><td><span class="status status-missing"><span class="status-dot"></span>Missing</span></td><td><span class="priority priority-low">Low</span></td><td>No actual payment processing (Razorpay/Stripe). Currently only tracks, doesn't pay.</td><td>20+ hours</td></tr>
     </tbody>
   </table>
+</div>
+
+<!-- ===== MVP PIPELINE ===== -->
+<div id="mvp" class="section">
+  <div class="section-header">
+    <h2>MVP Pipeline</h2>
+    <span class="badge" style="background:var(--blue-dim);color:var(--blue)">6 MVPs Defined</span>
+  </div>
+
+  <div class="roadmap-grid">
+
+    <!-- MVP 1 -->
+    <div class="roadmap-card" style="border-left: 3px solid var(--red)">
+      <div class="phase-label" style="color:var(--red)">MVP 1 — Password Recovery</div>
+      <h3>Forgot Password Flow</h3>
+      <p>Users locked out permanently if they forget their password. This is a critical gap blocking production launch.</p>
+      <ul class="roadmap-items">
+        <li class="pending"><span class="ri-icon"></span>"Forgot Password?" link on sign-in page</li>
+        <li class="pending"><span class="ri-icon"></span>Email input form with rate-limited OTP dispatch</li>
+        <li class="pending"><span class="ri-icon"></span>Reset token generation (crypto.randomUUID, 15-min expiry)</li>
+        <li class="pending"><span class="ri-icon"></span>New password form with confirmation + Zod validation</li>
+        <li class="pending"><span class="ri-icon"></span>Invalidate all existing sessions on password reset</li>
+        <li class="pending"><span class="ri-icon"></span>Resend email template for password reset</li>
+      </ul>
+      <div style="margin-top:1rem;display:flex;gap:1rem;flex-wrap:wrap">
+        <span class="status status-missing"><span class="status-dot"></span>Not Started</span>
+        <span class="priority priority-critical">Critical</span>
+        <span style="font-size:0.75rem;color:var(--text2)">Est: 4-6 hours</span>
+      </div>
+    </div>
+
+    <!-- MVP 2 -->
+    <div class="roadmap-card" style="border-left: 3px solid var(--red)">
+      <div class="phase-label" style="color:var(--red)">MVP 2 — API Security</div>
+      <h3>Rate Limiting & Input Sanitization</h3>
+      <p>No brute-force protection on any endpoint. Essential for a financial app before going live.</p>
+      <ul class="roadmap-items">
+        <li class="pending"><span class="ri-icon"></span>Install @hono/rate-limiter or build IP-based throttle</li>
+        <li class="pending"><span class="ri-icon"></span>Rate limit auth endpoints (5 attempts/min login, 3 attempts/min OTP)</li>
+        <li class="pending"><span class="ri-icon"></span>Rate limit sensitive writes (subscription create/update)</li>
+        <li class="pending"><span class="ri-icon"></span>Input sanitization audit across all API routes</li>
+        <li class="pending"><span class="ri-icon"></span>Add CSRF protection for state-changing mutations</li>
+        <li class="pending"><span class="ri-icon"></span>Security headers middleware (HSTS, CSP, X-Frame-Options)</li>
+      </ul>
+      <div style="margin-top:1rem;display:flex;gap:1rem;flex-wrap:wrap">
+        <span class="status status-missing"><span class="status-dot"></span>Not Started</span>
+        <span class="priority priority-critical">Critical</span>
+        <span style="font-size:0.75rem;color:var(--text2)">Est: 4-6 hours</span>
+      </div>
+    </div>
+
+    <!-- MVP 3 -->
+    <div class="roadmap-card" style="border-left: 3px solid var(--amber)">
+      <div class="phase-label" style="color:var(--amber)">MVP 3 — Smart Insights Engine</div>
+      <h3>Proactive Spending Alerts</h3>
+      <p>Transform the app from passive tracker to active financial advisor. The data is already there — build the intelligence layer on top.</p>
+      <ul class="roadmap-items">
+        <li class="pending"><span class="ri-icon"></span>Spending anomaly detection (month-over-month % change alerts)</li>
+        <li class="pending"><span class="ri-icon"></span>Price change detection (compare current vs previous billing amount)</li>
+        <li class="pending"><span class="ri-icon"></span>Unused subscription nudges ("You haven't used X in 45 days, save ₹Y/mo")</li>
+        <li class="pending"><span class="ri-icon"></span>Insights dashboard card on home page</li>
+        <li class="pending"><span class="ri-icon"></span>Optional email digest with top 3 insights weekly</li>
+        <li class="pending"><span class="ri-icon"></span>Dismissible insight cards with "Don't show again" per insight type</li>
+      </ul>
+      <div style="margin-top:1rem;display:flex;gap:1rem;flex-wrap:wrap">
+        <span class="status status-missing"><span class="status-dot"></span>Not Started</span>
+        <span class="priority priority-high">High</span>
+        <span style="font-size:0.75rem;color:var(--text2)">Est: 12-16 hours</span>
+      </div>
+    </div>
+
+    <!-- MVP 4 -->
+    <div class="roadmap-card" style="border-left: 3px solid var(--amber)">
+      <div class="phase-label" style="color:var(--amber)">MVP 4 — Bank Statement Import</div>
+      <h3>Auto-detect Subscriptions from CSV</h3>
+      <p>Manual entry is the biggest friction point. Let users upload bank/UPI statements and auto-detect recurring charges.</p>
+      <ul class="roadmap-items">
+        <li class="pending"><span class="ri-icon"></span>CSV file upload UI with drag-and-drop</li>
+        <li class="pending"><span class="ri-icon"></span>Parser for common Indian bank statement formats (SBI, HDFC, ICICI, Kotak)</li>
+        <li class="pending"><span class="ri-icon"></span>UPI transaction ID detection for recurring payments</li>
+        <li class="pending"><span class="ri-icon"></span>Pattern matching to identify recurring charges (same merchant, similar amount)</li>
+        <li class="pending"><span class="ri-icon"></span>Review & confirm UI — show detected subscriptions before adding</li>
+        <li class="pending"><span class="ri-icon"></span>Duplicate detection against existing subscriptions</li>
+        <li class="pending"><span class="ri-icon"></span>Support PhonePe, GPay, Paytm export formats</li>
+      </ul>
+      <div style="margin-top:1rem;display:flex;gap:1rem;flex-wrap:wrap">
+        <span class="status status-missing"><span class="status-dot"></span>Not Started</span>
+        <span class="priority priority-high">High</span>
+        <span style="font-size:0.75rem;color:var(--text2)">Est: 16-24 hours</span>
+      </div>
+    </div>
+
+    <!-- MVP 5 -->
+    <div class="roadmap-card" style="border-left: 3px solid var(--blue)">
+      <div class="phase-label" style="color:var(--blue)">MVP 5 — Payment Calendar</div>
+      <h3>Visual Bill Calendar View</h3>
+      <p>Users need to see when money leaves their account. A calendar view enables cash flow planning — the #1 requested feature in Rocket Money reviews.</p>
+      <ul class="roadmap-items">
+        <li class="pending"><span class="ri-icon"></span>Monthly calendar grid with bill markers on due dates</li>
+        <li class="pending"><span class="ri-icon"></span>Color-coded dots (paid = green, upcoming = blue, overdue = red)</li>
+        <li class="pending"><span class="ri-icon"></span>Click date to see all bills due that day</li>
+        <li class="pending"><span class="ri-icon"></span>Daily/weekly/monthly total spend summaries</li>
+        <li class="pending"><span class="ri-icon"></span>Quick mark-as-paid directly from calendar</li>
+        <li class="pending"><span class="ri-icon"></span>"Heavy spending days" highlight (days with 3+ bills)</li>
+      </ul>
+      <div style="margin-top:1rem;display:flex;gap:1rem;flex-wrap:wrap">
+        <span class="status status-missing"><span class="status-dot"></span>Not Started</span>
+        <span class="priority priority-medium">Medium</span>
+        <span style="font-size:0.75rem;color:var(--text2)">Est: 8-12 hours</span>
+      </div>
+    </div>
+
+    <!-- MVP 6 -->
+    <div class="roadmap-card" style="border-left: 3px solid var(--blue)">
+      <div class="phase-label" style="color:var(--blue)">MVP 6 — Spending Forecast</div>
+      <h3>Next Month Prediction</h3>
+      <p>Predict next month's total spend using billing history + utility estimation engine. Helps users plan ahead.</p>
+      <ul class="roadmap-items">
+        <li class="pending"><span class="ri-icon"></span>Aggregate fixed subscriptions (known amounts + billing dates)</li>
+        <li class="pending"><span class="ri-icon"></span>Extend utility estimation engine for next-month prediction</li>
+        <li class="pending"><span class="ri-icon"></span>Confidence interval display (best case / expected / worst case)</li>
+        <li class="pending"><span class="ri-icon"></span>Forecast card on dashboard with month-over-month comparison</li>
+        <li class="pending"><span class="ri-icon"></span>Breakdown by category (fixed vs variable vs discretionary)</li>
+        <li class="pending"><span class="ri-icon"></span>Alert if forecast exceeds budget by >10%</li>
+      </ul>
+      <div style="margin-top:1rem;display:flex;gap:1rem;flex-wrap:wrap">
+        <span class="status status-missing"><span class="status-dot"></span>Not Started</span>
+        <span class="priority priority-medium">Medium</span>
+        <span style="font-size:0.75rem;color:var(--text2)">Est: 8-12 hours</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== UX IMPROVEMENTS ===== -->
+<div id="ux" class="section">
+  <div class="section-header">
+    <h2>UX Improvements</h2>
+    <span class="badge" style="background:var(--green-dim);color:var(--green)">18 Opportunities</span>
+  </div>
+
+  <!-- ONBOARDING -->
+  <div class="section-header" style="margin-top:1rem">
+    <h2 style="font-size:1.15rem">Onboarding & First-Time Experience</h2>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Improvement</th><th style="width:10%">Impact</th><th>Description</th><th style="width:12%">Effort</th></tr></thead>
+    <tbody>
+      <tr><td>Guided Setup Wizard</td><td><span class="priority priority-critical">Critical</span></td><td>New users see an empty dashboard with no guidance. Add a 3-step wizard: set income, pick popular subscriptions from templates, set first budget. Dramatically reduces time-to-value.</td><td>6-8 hours</td></tr>
+      <tr><td>Empty State Illustrations</td><td><span class="priority priority-high">High</span></td><td>Replace blank tables/cards with illustrated empty states and clear CTAs. "No subscriptions yet? Add your first one" with a prominent button. Each page needs its own empty state.</td><td>3-4 hours</td></tr>
+      <tr><td>Quick-Add Floating Button</td><td><span class="priority priority-medium">Medium</span></td><td>A persistent "+" FAB (floating action button) on mobile for instant subscription/bill creation. Reduces taps to the most common action from 3 to 1.</td><td>2-3 hours</td></tr>
+    </tbody>
+  </table>
+
+  <!-- NAVIGATION & INFORMATION ARCHITECTURE -->
+  <div class="section-header" style="margin-top:2rem">
+    <h2 style="font-size:1.15rem">Navigation & Information Architecture</h2>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Improvement</th><th style="width:10%">Impact</th><th>Description</th><th style="width:12%">Effort</th></tr></thead>
+    <tbody>
+      <tr><td>Global Search / Command Palette</td><td><span class="priority priority-high">High</span></td><td>Cmd+K / Ctrl+K to search subscriptions, navigate pages, or trigger actions ("mark Netflix as paid"). Power users expect this. Can use cmdk library.</td><td>6-8 hours</td></tr>
+      <tr><td>Breadcrumb Navigation</td><td><span class="priority priority-medium">Medium</span></td><td>Users lose context when deep in settings or subscription detail views. Add breadcrumbs below the header to show current location and enable quick back-navigation.</td><td>2-3 hours</td></tr>
+      <tr><td>Contextual Help Tooltips</td><td><span class="priority priority-low">Low</span></td><td>Add "?" icons next to complex features (safe-to-spend, confidence scoring, estimation methods) with hover tooltips explaining what they mean in plain language.</td><td>2-3 hours</td></tr>
+    </tbody>
+  </table>
+
+  <!-- DATA ENTRY & FORMS -->
+  <div class="section-header" style="margin-top:2rem">
+    <h2 style="font-size:1.15rem">Data Entry & Forms</h2>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Improvement</th><th style="width:10%">Impact</th><th>Description</th><th style="width:12%">Effort</th></tr></thead>
+    <tbody>
+      <tr><td>Inline Editing</td><td><span class="priority priority-high">High</span></td><td>Allow editing subscription amount, name, or billing date directly from the list view by clicking on the field. Eliminates the open-form-edit-save-close loop for quick edits.</td><td>6-8 hours</td></tr>
+      <tr><td>Bulk Actions</td><td><span class="priority priority-high">High</span></td><td>Select multiple subscriptions and perform bulk mark-as-paid, bulk delete, or bulk category change. Users with 20+ subscriptions need this to manage efficiently.</td><td>4-6 hours</td></tr>
+      <tr><td>Smart Amount Input</td><td><span class="priority priority-medium">Medium</span></td><td>Accept natural language amounts: "2.5k" = 2500, "1.2L" = 120000. Indian users think in lakhs/thousands. Also auto-format with commas as they type (1,00,000 Indian notation).</td><td>3-4 hours</td></tr>
+      <tr><td>Recently Used Templates</td><td><span class="priority priority-low">Low</span></td><td>Show the user's most recently added subscription templates at the top of the template picker, not just the full alphabetical list of 50+.</td><td>1-2 hours</td></tr>
+    </tbody>
+  </table>
+
+  <!-- VISUAL FEEDBACK & MICRO-INTERACTIONS -->
+  <div class="section-header" style="margin-top:2rem">
+    <h2 style="font-size:1.15rem">Visual Feedback & Micro-interactions</h2>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Improvement</th><th style="width:10%">Impact</th><th>Description</th><th style="width:12%">Effort</th></tr></thead>
+    <tbody>
+      <tr><td>Skeleton Loading States</td><td><span class="priority priority-high">High</span></td><td>Pages currently show nothing while data loads, then pop in. Add shimmer/skeleton placeholders matching the actual layout shape for every page. Feels 2x faster.</td><td>4-6 hours</td></tr>
+      <tr><td>Toast Notifications</td><td><span class="priority priority-high">High</span></td><td>After actions like mark-as-paid, delete, or export, show a brief toast with undo option (for destructive actions). Currently no feedback after most mutations.</td><td>2-3 hours</td></tr>
+      <tr><td>Optimistic UI Updates</td><td><span class="priority priority-medium">Medium</span></td><td>Mark-as-paid and status changes should update the UI instantly before the API confirms. TanStack Query supports this — just wire up onMutate callbacks.</td><td>3-4 hours</td></tr>
+      <tr><td>Animated Transitions</td><td><span class="priority priority-low">Low</span></td><td>Add subtle page transitions (fade-in), list item animations (stagger), and card hover effects using Framer Motion. Makes the app feel polished and alive.</td><td>4-6 hours</td></tr>
+    </tbody>
+  </table>
+
+  <!-- MOBILE & ACCESSIBILITY -->
+  <div class="section-header" style="margin-top:2rem">
+    <h2 style="font-size:1.15rem">Mobile & Accessibility</h2>
+  </div>
+  <table class="feature-table">
+    <thead><tr><th style="width:25%">Improvement</th><th style="width:10%">Impact</th><th>Description</th><th style="width:12%">Effort</th></tr></thead>
+    <tbody>
+      <tr><td>Swipe Actions on Mobile</td><td><span class="priority priority-high">High</span></td><td>Swipe left on a subscription to reveal "Mark Paid" / "Skip" / "Delete" actions. Standard mobile UX pattern — users expect it. Reduces taps significantly.</td><td>4-6 hours</td></tr>
+      <tr><td>Pull-to-Refresh</td><td><span class="priority priority-medium">Medium</span></td><td>Mobile users expect pull-to-refresh on list views. Currently no way to force a data refresh without reloading the page.</td><td>2-3 hours</td></tr>
+      <tr><td>Keyboard Navigation</td><td><span class="priority priority-medium">Medium</span></td><td>Ensure all interactive elements are reachable via Tab key. Add visible focus rings. Support Enter/Space to trigger actions. Arrow keys in tables and lists.</td><td>3-4 hours</td></tr>
+      <tr><td>PWA Install Prompt</td><td><span class="priority priority-medium">Medium</span></td><td>Add a web app manifest, service worker, and "Add to Home Screen" banner. Indian users heavily use mobile — a PWA feels like a native app without the app store.</td><td>4-6 hours</td></tr>
+    </tbody>
+  </table>
+
 </div>
 
 <!-- ===== ROADMAP ===== -->
@@ -654,8 +866,8 @@
 
 <!-- FOOTER -->
 <div class="footer">
-  <p>SubTracker Project Tracker &middot; Generated March 23, 2026</p>
-  <p>Branch: feature/frontend-redesign &middot; Stack: Next.js + Hono + Prisma + PostgreSQL</p>
+  <p>SubTracker Project Tracker &middot; Generated March 25, 2026</p>
+  <p>Branch: hotfix/modularising-ui &middot; Stack: Next.js + Hono + Prisma + PostgreSQL</p>
 </div>
 
 <script>
