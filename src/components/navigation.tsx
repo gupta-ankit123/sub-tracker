@@ -1,18 +1,15 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { SettingsIcon, CreditCardIcon, CalendarIcon, BarChart3Icon, ClockIcon, ListIcon, Zap, WalletIcon, LayoutDashboard } from "lucide-react"
+import { SettingsIcon, ListIcon, Zap, WalletIcon, LayoutDashboard } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 const routes = [
     { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+    { label: "My Expenses & Budgets", href: "/budgets", icon: WalletIcon },
     { label: "All Subscriptions", href: "/subscriptions", icon: ListIcon },
     { label: "Utility Bills", href: "/utility-bills", icon: Zap },
-    { label: "Upcoming Bills", href: "/upcoming", icon: ClockIcon },
-    { label: "Billing History", href: "/billing-history", icon: CreditCardIcon },
-    { label: "Analytics", href: "/analytics", icon: BarChart3Icon },
-    { label: "Budgets", href: "/budgets", icon: WalletIcon },
     { label: "Settings", href: "/settings", icon: SettingsIcon },
 ]
 
