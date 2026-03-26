@@ -34,6 +34,8 @@ model User {
   emailVerified      Boolean   @default(false) @map("email_verified")
   otpCode            String?
   otpExpiry          DateTime?
+  resetCode          String?
+  resetCodeExpiry    DateTime?
 
   subscriptions           Subscription[]
   notificationPreferences NotificationPreference[]

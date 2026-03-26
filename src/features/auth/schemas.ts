@@ -42,3 +42,23 @@ export const changePasswordServerSchema = z.object({
     currentPassword: z.string().min(1),
     newPassword: z.string().min(8),
 })
+
+export const forgotPasswordSchema = z.object({
+    email: z.email(),
+})
+
+export const resetPasswordSchema = z.object({
+    email: z.email(),
+    otp: z.string().length(6, "OTP must be 6 digits"),
+    newPassword: z.string().min(8, "Minimum 8 characters required"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+})
+
+export const resetPasswordServerSchema = z.object({
+    email: z.email(),
+    otp: z.string().length(6),
+    newPassword: z.string().min(8),
+})

@@ -1,3 +1,32 @@
+export function passwordResetEmailHtml(params: {
+    userName: string
+    otp: string
+}): string {
+    const { userName, otp } = params
+
+    return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1a1a1a;">
+    <div style="background: linear-gradient(135deg, #00d4aa 0%, #46f1c5 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+        <h1 style="color: #005643; margin: 0; font-size: 24px;">Password Reset</h1>
+    </div>
+    <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        <p style="font-size: 16px;">Hi ${userName},</p>
+        <p style="font-size: 16px;">We received a request to reset your password. Use the code below to set a new password:</p>
+        <div style="background: #f0fdf9; border-radius: 8px; padding: 24px; margin: 24px 0; text-align: center; border: 1px solid #d1fae5;">
+            <span style="font-family: 'Courier New', monospace; font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #005643;">${otp}</span>
+        </div>
+        <p style="font-size: 14px; color: #6b7280;">This code expires in <strong>15 minutes</strong>.</p>
+        <p style="font-size: 14px; color: #6b7280;">If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+        <p style="font-size: 12px; color: #9ca3af; text-align: center;">SubTracker &middot; Subscription Management</p>
+    </div>
+</body>
+</html>`
+}
+
 export function billReminderEmailHtml(params: {
     userName: string
     subscriptionName: string

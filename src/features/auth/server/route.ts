@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { zValidator } from "@hono/zod-validator"
-import { loginSchema, registerSchema, verifyOtpSchema, updateProfileSchema, updateSettingsSchema, changePasswordServerSchema } from "../schemas";
+import { loginSchema, registerSchema, verifyOtpSchema, updateProfileSchema, updateSettingsSchema, changePasswordServerSchema, forgotPasswordSchema, resetPasswordServerSchema } from "../schemas";
+import { passwordResetEmailHtml } from "@/lib/email-templates";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcrypt";
 import { deleteCookie, setCookie } from "hono/cookie"
@@ -252,6 +253,79 @@ const app = new Hono()
         });
 
         return c.json({ message: "Password changed successfully" });
+    })
+    .post("/forgot-password", zValidator("json", forgotPasswordSchema), async (c) => {
+        const { email } = c.req.valid("json");
+
+        try {
+            const user = await prisma.user.findUnique({ where: { email } });
+
+            if (user) {
+                // Rate limit: reject if a valid reset code already exists
+                if (user.resetCodeExpiry && user.resetCodeExpiry > new Date()) {
+                    return c.json({ error: "A reset code was already sent. Please wait before requesting another." }, 429);
+                }
+
+                const otp = Math.floor(100000 + Math.random() * 900000).toString();
+                const expiry = new Date(Date.now() + 15 * 60 * 1000);
+
+                await prisma.user.update({
+                    where: { id: user.id },
+                    data: { resetCode: otp, resetCodeExpiry: expiry },
+                });
+
+                await resend.emails.send({
+                    from: process.env.EMAIL_FROM!,
+                    to: email,
+                    subject: "Reset your password",
+                    html: passwordResetEmailHtml({ userName: user.name, otp }),
+                });
+            }
+
+            return c.json({ message: "If an account with that email exists, a reset code has been sent." });
+        } catch (error) {
+            console.error("Forgot password error:", error);
+            return c.json({ error: "Something went wrong" }, 500);
+        }
+    })
+    .post("/reset-password", zValidator("json", resetPasswordServerSchema), async (c) => {
+        const { email, otp, newPassword } = c.req.valid("json");
+
+        try {
+            const user = await prisma.user.findUnique({ where: { email } });
+
+            if (!user || !user.resetCode || !user.resetCodeExpiry) {
+                return c.json({ error: "Invalid or expired reset code" }, 400);
+            }
+
+            if (user.resetCode !== otp) {
+                return c.json({ error: "Invalid or expired reset code" }, 400);
+            }
+
+            if (user.resetCodeExpiry < new Date()) {
+                return c.json({ error: "Invalid or expired reset code" }, 400);
+            }
+
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+            await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    password: hashedPassword,
+                    resetCode: null,
+                    resetCodeExpiry: null,
+                },
+            });
+
+            // Invalidate current session cookies
+            deleteCookie(c, "auth_token");
+            deleteCookie(c, "refresh_token");
+
+            return c.json({ message: "Password reset successfully" });
+        } catch (error) {
+            console.error("Reset password error:", error);
+            return c.json({ error: "Something went wrong" }, 500);
+        }
     })
     .delete("/account", sessionMiddleware, async (c) => {
         const user = c.get("user");
