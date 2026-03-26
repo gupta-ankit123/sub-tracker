@@ -38,10 +38,3 @@ export const sessionMiddleware = createMiddleware<AdditionalContext>(async (c, n
         return c.json({ error: "Unauthorized" }, 401);
     }
 })
-
-
-// TODO in auth:
-// Rate limiting - Add @hono/rate-limiter to prevent brute force
-// Token refresh - Add / auth / refresh endpoint to extend sessions
-// Email verification - Add email verification flow
-// Password reset - Add forgot / reset password functionality

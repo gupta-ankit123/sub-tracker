@@ -9,6 +9,8 @@ import { deleteCookie, setCookie } from "hono/cookie"
 import { sessionMiddleware } from "@/lib/sessionMiddleware";
 import { resend } from "@/lib/resend";
 import { createAccessToken, createRefreshToken, setAccessCookie, setRefreshCookie, getRefreshTokenFromCookie, verifyRefreshToken } from "@/lib/jwt";
+import { authStrictLimiter, authTightLimiter } from "@/lib/rateLimiter";
+import { sanitizeString } from "@/lib/sanitize";
 
 
 const app = new Hono()
@@ -16,7 +18,7 @@ const app = new Hono()
         const user = c.get("user");
         return c.json({ data: user })
     })
-    .post("/login", zValidator("json", loginSchema), async (c) => {
+    .post("/login", authStrictLimiter, zValidator("json", loginSchema), async (c) => {
         const { email, password } = c.req.valid("json")
         const user = await prisma.user.findUnique({
             where: { email }
@@ -60,8 +62,9 @@ const app = new Hono()
             }
         })
     })
-    .post("/register", zValidator("json", registerSchema), async (c) => {
+    .post("/register", authTightLimiter, zValidator("json", registerSchema), async (c) => {
         const { name, email, password } = c.req.valid("json")
+        const sanitizedName = sanitizeString(name);
 
         const existingUser = await prisma.user.findUnique({
             where: { email }
@@ -79,7 +82,7 @@ const app = new Hono()
             data: {
                 email,
                 password: hashedPassword,
-                name,
+                name: sanitizedName,
                 emailVerified: false,
                 otpCode: otp,
                 otpExpiry: expiry,
@@ -108,7 +111,7 @@ const app = new Hono()
         })
 
     })
-    .post("/verify-otp", zValidator("json", verifyOtpSchema), async (c) => {
+    .post("/verify-otp", authTightLimiter, zValidator("json", verifyOtpSchema), async (c) => {
         const { email, otp } = c.req.valid("json");
 
         try {
@@ -181,10 +184,12 @@ const app = new Hono()
     .patch("/profile", sessionMiddleware, zValidator("json", updateProfileSchema), async (c) => {
         const user = c.get("user");
         const { name, phone } = c.req.valid("json");
+        const sanitizedName = sanitizeString(name);
+        const sanitizedPhone = phone ? sanitizeString(phone) : null;
 
-        if (phone) {
+        if (sanitizedPhone) {
             const existing = await prisma.user.findFirst({
-                where: { phone, id: { not: user.id } }
+                where: { phone: sanitizedPhone, id: { not: user.id } }
             });
             if (existing) {
                 return c.json({ error: "Phone number already in use" }, 400);
@@ -194,8 +199,8 @@ const app = new Hono()
         const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: {
-                name,
-                phone: phone || null,
+                name: sanitizedName,
+                phone: sanitizedPhone,
             },
         });
 
@@ -254,7 +259,7 @@ const app = new Hono()
 
         return c.json({ message: "Password changed successfully" });
     })
-    .post("/forgot-password", zValidator("json", forgotPasswordSchema), async (c) => {
+    .post("/forgot-password", authTightLimiter, zValidator("json", forgotPasswordSchema), async (c) => {
         const { email } = c.req.valid("json");
 
         try {
@@ -288,7 +293,7 @@ const app = new Hono()
             return c.json({ error: "Something went wrong" }, 500);
         }
     })
-    .post("/reset-password", zValidator("json", resetPasswordServerSchema), async (c) => {
+    .post("/reset-password", authStrictLimiter, zValidator("json", resetPasswordServerSchema), async (c) => {
         const { email, otp, newPassword } = c.req.valid("json");
 
         try {

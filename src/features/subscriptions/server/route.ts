@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { sessionMiddleware } from "@/lib/sessionMiddleware";
 import { createSubscriptionSchema, updateSubscriptionSchema, subscriptionIdSchema, createUtilityBillSchema, recordBillSchema, createEstimateSchema, createBillingHistorySchema, updateBillingHistoryStatusSchema, updateUsageFrequencySchema } from "../schemas";
 import { BillingCycle } from "@/app/generated/prisma/client";
+import { sanitizeString } from "@/lib/sanitize";
 
 function calculateNextBillingDate(billingCycle: BillingCycle, fromDate: Date): Date {
     const next = new Date(fromDate);
@@ -57,8 +58,8 @@ const app = new Hono()
         const subscription = await prisma.subscription.create({
             data: {
                 userId: user.id,
-                name: data.name,
-                description: data.description || null,
+                name: sanitizeString(data.name),
+                description: data.description ? sanitizeString(data.description) : null,
                 category: data.category,
                 amount: data.amount || 0,
                 currency: data.currency,
@@ -71,7 +72,7 @@ const app = new Hono()
                 billingDay,
                 status: "ACTIVE",
                 paymentStatus: "PENDING",
-                notes: data.notes || null,
+                notes: data.notes ? sanitizeString(data.notes) : null,
             }
         });
 
@@ -412,8 +413,8 @@ const app = new Hono()
         const subscription = await prisma.subscription.create({
             data: {
                 userId: user.id,
-                name: data.name,
-                description: data.description,
+                name: sanitizeString(data.name),
+                description: data.description ? sanitizeString(data.description) : undefined,
                 category: data.category,
                 logoUrl: data.logoUrl || null,
                 websiteUrl: data.websiteUrl || null,
@@ -424,7 +425,7 @@ const app = new Hono()
                 lastBillingDate,
                 nextBillingDate,
                 autoRenew: data.autoRenew,
-                notes: data.notes || null,
+                notes: data.notes ? sanitizeString(data.notes) : null,
                 reminderDays: data.reminderDays,
                 usageFrequency: data.usageFrequency || "MONTHLY"
             }
@@ -446,6 +447,11 @@ const app = new Hono()
         }
 
         const updateData: Record<string, unknown> = { ...data };
+
+        // Sanitize text fields
+        if (updateData.name) updateData.name = sanitizeString(updateData.name as string);
+        if (updateData.description) updateData.description = sanitizeString(updateData.description as string);
+        if (updateData.notes) updateData.notes = sanitizeString(updateData.notes as string);
 
         if (data.billingCycle || data.firstBillingDate) {
             const billingCycle = data.billingCycle || existing.billingCycle;
