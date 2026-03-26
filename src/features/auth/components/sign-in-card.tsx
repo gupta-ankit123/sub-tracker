@@ -86,9 +86,9 @@ export const SignInCard = () => {
                                             <label className="block text-sm font-medium text-[#bacac2]">
                                                 Password
                                             </label>
-                                            <span className="text-xs font-semibold text-[#46f1c5] hover:text-[#55fcd0] transition-colors cursor-pointer">
+                                            <Link href="/forgot-password" className="text-xs font-semibold text-[#46f1c5] hover:text-[#55fcd0] transition-colors">
                                                 Forgot Password?
-                                            </span>
+                                            </Link>
                                         </div>
                                         <FormControl>
                                             <input
