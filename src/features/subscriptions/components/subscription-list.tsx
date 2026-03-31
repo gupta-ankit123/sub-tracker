@@ -4,12 +4,12 @@ import { useSubscriptions } from "../api/use-subscriptions"
 import { SubscriptionFormDialog } from "./subscription-form-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Edit, Trash2, Calendar, TrendingUp, Wallet, PieChart as PieChartIcon, CreditCard } from "lucide-react"
+import { Plus, Edit, Trash2, Calendar, TrendingUp, Wallet, PieChart as PieChartIcon, CreditCard, ChevronLeft, ChevronRight } from "lucide-react"
 import { useDeleteSubscription } from "../api/use-delete-subscription"
 import { useMarkAsPaid } from "../api/use-mark-as-paid"
 import { useSkipPayment } from "../api/use-skip-payment"
 import { useMarkAsUsed } from "../api/use-mark-as-used"
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO, format, isBefore, addDays } from "date-fns"
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO, format, isBefore, addDays, addMonths, subMonths } from "date-fns"
 import { Check, SkipForward, AlertCircle, CheckCircle, Clock, Zap, Search, MoreHorizontal, CalendarDays } from "lucide-react"
 import {
     DropdownMenu,
@@ -60,6 +60,52 @@ function calculateMonthlyAmount(amount: string | number, billingCycle: string): 
         default:
             return numAmount
     }
+}
+
+function advanceByCycle(date: Date, cycle: string): Date {
+    switch (cycle) {
+        case "WEEKLY": return addDays(date, 7)
+        case "MONTHLY": return addMonths(date, 1)
+        case "QUARTERLY": return addMonths(date, 3)
+        case "SEMI_ANNUAL": return addMonths(date, 6)
+        case "ANNUAL": return addMonths(date, 12)
+        default: return addMonths(date, 1)
+    }
+}
+
+function rewindByCycle(date: Date, cycle: string): Date {
+    switch (cycle) {
+        case "WEEKLY": return addDays(date, -7)
+        case "MONTHLY": return subMonths(date, 1)
+        case "QUARTERLY": return subMonths(date, 3)
+        case "SEMI_ANNUAL": return subMonths(date, 6)
+        case "ANNUAL": return subMonths(date, 12)
+        default: return subMonths(date, 1)
+    }
+}
+
+function getProjectedDateInMonth(nextBillingDate: string, billingCycle: string, mStart: Date, mEnd: Date): Date | null {
+    const anchor = parseISO(nextBillingDate)
+
+    if (billingCycle === "ONE_TIME") {
+        return isWithinInterval(anchor, { start: mStart, end: mEnd }) ? anchor : null
+    }
+
+    // Walk forward from anchor
+    let fwd = anchor
+    while (fwd < mStart) {
+        fwd = advanceByCycle(fwd, billingCycle)
+    }
+    if (isWithinInterval(fwd, { start: mStart, end: mEnd })) return fwd
+
+    // Walk backward from anchor
+    let bwd = anchor
+    while (bwd > mEnd) {
+        bwd = rewindByCycle(bwd, billingCycle)
+    }
+    if (isWithinInterval(bwd, { start: mStart, end: mEnd })) return bwd
+
+    return null
 }
 
 function getCategoryColor(index: number): string {
@@ -229,6 +275,12 @@ export function SubscriptionList() {
     const [cycleFilter, setCycleFilter] = useState<CycleFilter>("ALL")
     const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("all")
     const [historySearch, setHistorySearch] = useState("")
+    const [selectedDate, setSelectedDate] = useState(() => {
+        const n = new Date()
+        return new Date(n.getFullYear(), n.getMonth(), 1)
+    })
+    const goToPrevMonth = () => setSelectedDate(d => subMonths(d, 1))
+    const goToNextMonth = () => setSelectedDate(d => addMonths(d, 1))
 
     const handleDelete = (id: string) => {
         if (confirm("Are you sure you want to delete this subscription?")) {
@@ -270,10 +322,11 @@ export function SubscriptionList() {
     const subscriptions: Subscription[] = data?.data || []
 
     const now = new Date()
+    const isCurrentMonth = selectedDate.getFullYear() === now.getFullYear() && selectedDate.getMonth() === now.getMonth()
     const weekStart = startOfWeek(now)
     const weekEnd = endOfWeek(now)
-    const monthStart = startOfMonth(now)
-    const monthEnd = endOfMonth(now)
+    const monthStart = startOfMonth(selectedDate)
+    const monthEnd = endOfMonth(selectedDate)
 
     const totalMonthlySpending = subscriptions
         .filter(sub => sub.status === "ACTIVE")

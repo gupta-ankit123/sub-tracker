@@ -4,8 +4,9 @@ import { useSubscriptions } from "@/features/subscriptions/api/use-subscriptions
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
-import { CreditCard, CheckCircle, Clock, Filter } from "lucide-react"
+import { CreditCard, CheckCircle, Clock, Filter, ChevronLeft, ChevronRight } from "lucide-react"
 import { useState } from "react"
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO, isWithinInterval } from "date-fns"
 import { useMarkAsPaid } from "@/features/subscriptions/api/use-mark-as-paid"
 import { useSkipPayment } from "@/features/subscriptions/api/use-skip-payment"
 import { Check, SkipForward } from "lucide-react"
@@ -31,6 +32,13 @@ interface Subscription {
 }
 
 export default function BillingHistoryPage() {
+    const [selectedDate, setSelectedDate] = useState(() => {
+        const now = new Date()
+        return new Date(now.getFullYear(), now.getMonth(), 1)
+    })
+    const goToPrevMonth = () => setSelectedDate(d => subMonths(d, 1))
+    const goToNextMonth = () => setSelectedDate(d => addMonths(d, 1))
+
     const { data, isLoading } = useSubscriptions()
     const markAsPaidMutation = useMarkAsPaid()
     const skipPaymentMutation = useSkipPayment()
@@ -88,7 +96,15 @@ export default function BillingHistoryPage() {
         )
     }
 
-    const subscriptions: Subscription[] = data?.data || []
+    const allSubscriptions: Subscription[] = data?.data || []
+
+    // Scope to the selected month
+    const mStart = startOfMonth(selectedDate)
+    const mEnd = endOfMonth(selectedDate)
+    const subscriptions = allSubscriptions.filter(sub => {
+        const billingDate = parseISO(sub.nextBillingDate)
+        return isWithinInterval(billingDate, { start: mStart, end: mEnd })
+    })
 
     const filteredSubscriptions = filter === "all"
         ? subscriptions
@@ -190,7 +206,7 @@ export default function BillingHistoryPage() {
         { value: "SKIPPED", label: "Skipped" },
     ]
 
-    if (subscriptions.length === 0) {
+    if (allSubscriptions.length === 0) {
         return (
             <div className="h-full p-4 md:p-8 overflow-auto">
                 <div className="max-w-7xl mx-auto">
@@ -224,8 +240,23 @@ export default function BillingHistoryPage() {
                 {/* Page Header */}
                 <section>
                     <h1 className="text-4xl font-bold font-[family-name:var(--font-plus-jakarta)] tracking-tight">Billing History</h1>
-                    <p className="text-[#bacac2] mt-2 text-sm max-w-md">Manage and track your past and upcoming payments with luminous precision.</p>
+                    <p className="text-[#bacac2] mt-2 text-sm max-w-md">Manage and track your past and upcoming payments.</p>
                 </section>
+
+                {/* Month Selector */}
+                <div className="flex items-center justify-center">
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.06] backdrop-blur-sm">
+                        <Button variant="ghost" size="icon" onClick={goToPrevMonth} className="h-8 w-8 rounded-full hover:bg-white/[0.08]">
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm font-semibold min-w-[160px] text-center font-[family-name:var(--font-plus-jakarta)]">
+                            {format(selectedDate, "MMMM yyyy")}
+                        </span>
+                        <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8 rounded-full hover:bg-white/[0.08]">
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
 
                 {/* Stat Cards */}
                 <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -238,7 +269,7 @@ export default function BillingHistoryPage() {
                             <p className="text-[#bacac2] text-xs uppercase tracking-widest font-bold mb-1">Total Paid</p>
                             <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)]">₹{totalPaid.toFixed(2)}</h3>
                             <p className="text-xs text-[#46f1c5] mt-1 font-medium">
-                                {subscriptions.filter(h => h.paymentStatus === "SUCCESS").length} payments this month
+                                {subscriptions.filter(h => h.paymentStatus === "SUCCESS").length} payments
                             </p>
                         </div>
                     </div>
@@ -252,7 +283,7 @@ export default function BillingHistoryPage() {
                             <p className="text-[#bacac2] text-xs uppercase tracking-widest font-bold mb-1">Pending</p>
                             <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)]">₹{totalPending.toFixed(2)}</h3>
                             <p className="text-xs text-amber-500 mt-1 font-medium">
-                                {subscriptions.filter(h => h.paymentStatus === "PENDING").length} items due soon
+                                {subscriptions.filter(h => h.paymentStatus === "PENDING").length} items pending
                             </p>
                         </div>
                     </div>

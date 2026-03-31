@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { SettingsIcon, ListIcon, Zap, WalletIcon, LayoutDashboard } from "lucide-react"
+import { SettingsIcon, ListIcon, Zap, WalletIcon, LayoutDashboard, CalendarDays } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -10,6 +10,7 @@ const routes = [
     { label: "My Expenses & Budgets", href: "/budgets", icon: WalletIcon },
     { label: "All Subscriptions", href: "/subscriptions", icon: ListIcon },
     { label: "Utility Bills", href: "/utility-bills", icon: Zap },
+    { label: "Bill Calendar", href: "/bill-calendar", icon: CalendarDays },
     { label: "Settings", href: "/settings", icon: SettingsIcon },
 ]
 
