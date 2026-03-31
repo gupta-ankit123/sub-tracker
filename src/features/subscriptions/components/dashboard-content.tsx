@@ -4,8 +4,8 @@ import { useSubscriptions } from "@/features/subscriptions/api/use-subscriptions
 import { useUtilityBills } from "@/features/subscriptions/api/use-utility-bills"
 import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
-import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check, Zap, ShieldCheck, CreditCard, BarChart3, AlertTriangle, RefreshCw, PlusCircle, MoreVertical, Droplets, Flame, Wifi, Smartphone, Building } from "lucide-react"
-import { useMemo } from "react"
+import { Plus, TrendingUp, DollarSign, AlertCircle, Sparkles, Lightbulb, Target, Wallet, CheckCircle, Clock, Check, Zap, ShieldCheck, CreditCard, BarChart3, AlertTriangle, RefreshCw, PlusCircle, MoreVertical, Droplets, Flame, Wifi, Smartphone, Building, ChevronLeft, ChevronRight } from "lucide-react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useSafeToSpend } from "@/features/budgets/api/use-safe-to-spend"
 import { useBudgets } from "@/features/budgets/api/use-budgets"
@@ -168,11 +168,20 @@ function StackedBarChart({ data }: { data: { label: string; subscriptions: numbe
 // ---------- Main Component ----------
 
 export function DashboardContent({ userName }: { userName: string }) {
+    const [selectedDate, setSelectedDate] = useState(() => {
+        const now = new Date()
+        return new Date(now.getFullYear(), now.getMonth(), 1)
+    })
+
+    const goToPrevMonth = () => setSelectedDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))
+    const goToNextMonth = () => setSelectedDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))
+
+    const selectedMonthStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-01`
+
     const { data, isLoading } = useSubscriptions()
     const { data: utilityBillsData, isLoading: utilLoading } = useUtilityBills()
-    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`
-    const { data: stsData } = useSafeToSpend(currentMonth)
-    const { data: budgetsData } = useBudgets(currentMonth)
+    const { data: stsData } = useSafeToSpend(selectedMonthStr)
+    const { data: budgetsData } = useBudgets(selectedMonthStr)
     const { data: budgetAnalyticsData } = useBudgetAnalytics(6)
 
     const insights = useMemo(() => {
@@ -180,7 +189,7 @@ export function DashboardContent({ userName }: { userName: string }) {
         if (subscriptions.length === 0 && !utilityBillsData?.data?.length && !budgetsData?.data?.length) return null
 
         const activeSubscriptions = subscriptions.filter(sub => sub.status === "ACTIVE")
-        const now = new Date()
+        const refDate = selectedDate
 
         // --- Subscription totals ---
         const subscriptionMonthlyTotal = activeSubscriptions.reduce(
@@ -189,7 +198,7 @@ export function DashboardContent({ userName }: { userName: string }) {
 
         // --- Utility bill totals ---
         const utilityBills: any[] = utilityBillsData?.data || []
-        const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+        const currentMonthStr = `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, "0")}`
         const utilityMonthlyTotal = utilityBills.reduce((sum: number, bill: any) => {
             const currentRecord = bill.billRecords?.find((r: any) => {
                 const recordDate = new Date(r.billingMonth)
@@ -257,10 +266,12 @@ export function DashboardContent({ userName }: { userName: string }) {
             sum + calculateMonthlyAmount(Number(sub.amount), sub.billingCycle), 0)
 
         // --- Payment status ---
+        const monthEnd = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0)
         const overdueThisMonth = activeSubscriptions.filter(sub => {
             if (sub.paymentStatus === "OVERDUE" || sub.paymentStatus === "FAILED") return true
             if (sub.paymentStatus !== "SUCCESS" && sub.paymentStatus !== "SKIPPED") {
-                return new Date(sub.nextBillingDate) < now
+                const dueDate = new Date(sub.nextBillingDate)
+                return dueDate <= monthEnd && dueDate >= refDate
             }
             return false
         })
@@ -272,7 +283,7 @@ export function DashboardContent({ userName }: { userName: string }) {
         const budgetAnalytics: any[] = budgetAnalyticsData?.data || []
         const trendData: { label: string; subscriptions: number; utilities: number; expenses: number }[] = []
         for (let i = 5; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+            const d = new Date(refDate.getFullYear(), refDate.getMonth() - i, 1)
             const label = d.toLocaleString('default', { month: 'short' })
             const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
 
@@ -342,8 +353,12 @@ export function DashboardContent({ userName }: { userName: string }) {
         top5Items.sort((a, b) => b.amount - a.amount)
 
         // --- Upcoming bills ---
+        const monthStart = refDate
         const upcomingSubs = activeSubscriptions
-            .filter(s => s.paymentStatus !== "SUCCESS")
+            .filter(s => {
+                const dueDate = new Date(s.nextBillingDate)
+                return dueDate >= monthStart && dueDate <= monthEnd && s.paymentStatus !== "SUCCESS"
+            })
             .sort((a, b) => new Date(a.nextBillingDate).getTime() - new Date(b.nextBillingDate).getTime())
             .slice(0, 4)
 
@@ -397,7 +412,7 @@ export function DashboardContent({ userName }: { userName: string }) {
             recentActivity,
             budgets,
         }
-    }, [data, utilityBillsData, budgetsData, budgetAnalyticsData, stsData])
+    }, [data, utilityBillsData, budgetsData, budgetAnalyticsData, stsData, selectedDate])
 
     if (isLoading || utilLoading) {
         return (
@@ -465,16 +480,14 @@ export function DashboardContent({ userName }: { userName: string }) {
     // Upcoming bills with status
     const upcomingBills = insights.upcomingSubs.map((sub: Subscription) => {
         const dueDate = new Date(sub.nextBillingDate)
-        const nowDate = new Date()
-        const daysUntilDue = Math.ceil((dueDate.getTime() - nowDate.getTime()) / (1000 * 60 * 60 * 24))
+        const daysUntilDue = Math.ceil((dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
         let status: "paid" | "pending" | "overdue" = "pending"
         if (sub.paymentStatus === "SUCCESS") status = "paid"
         else if (sub.paymentStatus === "OVERDUE" || sub.paymentStatus === "FAILED" || daysUntilDue < 0) status = "overdue"
         return { ...sub, dueDate, daysUntilDue, status }
     })
 
-    const now = new Date()
-    const currentMonthName = now.toLocaleString('default', { month: 'long', year: 'numeric' })
+    const displayMonthName = selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })
 
     // Source breakdown
     const sourceTotal = insights.totalMonthlySpend || 1
@@ -494,7 +507,7 @@ export function DashboardContent({ userName }: { userName: string }) {
                         Financial Overview
                     </h2>
                     <p className="text-[#bacac2] font-medium">
-                        Welcome back, {userName}. Here&apos;s your spending snapshot for {currentMonthName}.
+                        Welcome back, {userName}. Here&apos;s your spending snapshot.
                     </p>
                 </div>
                 <div className="flex gap-3">
@@ -510,6 +523,21 @@ export function DashboardContent({ userName }: { userName: string }) {
                             Add New
                         </button>
                     </SubscriptionFormDialog>
+                </div>
+            </div>
+
+            {/* Month Selector */}
+            <div className="flex items-center justify-center mb-10">
+                <div className="flex items-center gap-2 px-2 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.06] backdrop-blur-sm">
+                    <Button variant="ghost" size="icon" onClick={goToPrevMonth} className="h-8 w-8 rounded-full hover:bg-white/[0.08]">
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm font-semibold min-w-[160px] text-center font-[family-name:var(--font-plus-jakarta)]">
+                        {displayMonthName}
+                    </span>
+                    <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8 rounded-full hover:bg-white/[0.08]">
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
                 </div>
             </div>
 

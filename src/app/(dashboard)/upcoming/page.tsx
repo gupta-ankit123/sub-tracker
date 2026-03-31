@@ -1,11 +1,12 @@
 "use client"
 
+import { useState } from "react"
 import { useSubscriptions } from "@/features/subscriptions/api/use-subscriptions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
-import { Plus, Calendar, Clock, AlertCircle } from "lucide-react"
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO, isWithinInterval, isBefore, addDays } from "date-fns"
+import { Plus, Calendar, Clock, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react"
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO, isWithinInterval, isBefore, addDays, format, addMonths, subMonths } from "date-fns"
 
 interface Subscription {
     id: string
@@ -25,6 +26,13 @@ interface Subscription {
 }
 
 export default function UpcomingPage() {
+    const [selectedDate, setSelectedDate] = useState(() => {
+        const now = new Date()
+        return new Date(now.getFullYear(), now.getMonth(), 1)
+    })
+    const goToPrevMonth = () => setSelectedDate(d => subMonths(d, 1))
+    const goToNextMonth = () => setSelectedDate(d => addMonths(d, 1))
+
     const { data, isLoading } = useSubscriptions()
 
     if (isLoading) {
@@ -67,39 +75,55 @@ export default function UpcomingPage() {
     const subscriptions: Subscription[] = data?.data || []
     const now = new Date()
 
+    const monthStart = startOfMonth(selectedDate)
+    const monthEnd = endOfMonth(selectedDate)
+
+    // For the selected month, calculate week boundaries
     const weekStart = startOfWeek(now)
     const weekEnd = endOfWeek(now)
-    const monthStart = startOfMonth(now)
-    const monthEnd = endOfMonth(now)
-    const next30Days = addDays(now, 30)
 
-    const overdue = subscriptions.filter(sub => {
-        if (sub.status !== "ACTIVE") return false
-        const billingDate = parseISO(sub.nextBillingDate)
-        return isBefore(billingDate, now)
-    })
-
-    const dueThisWeek = subscriptions.filter(sub => {
-        if (sub.status !== "ACTIVE") return false
-        const billingDate = parseISO(sub.nextBillingDate)
-        return isWithinInterval(billingDate, { start: weekStart, end: weekEnd })
-    })
-
+    // Bills due in the selected month
     const dueThisMonth = subscriptions.filter(sub => {
         if (sub.status !== "ACTIVE") return false
         const billingDate = parseISO(sub.nextBillingDate)
         return isWithinInterval(billingDate, { start: monthStart, end: monthEnd })
     })
 
-    const dueNext30Days = subscriptions.filter(sub => {
-        if (sub.status !== "ACTIVE") return false
+    // Overdue: bills in the selected month that are past today
+    const overdue = dueThisMonth.filter(sub => {
         const billingDate = parseISO(sub.nextBillingDate)
-        return isWithinInterval(billingDate, { start: now, end: next30Days })
+        return isBefore(billingDate, now)
+    })
+
+    // Due this week (only relevant when viewing the current month)
+    const isCurrentMonth = selectedDate.getFullYear() === now.getFullYear() && selectedDate.getMonth() === now.getMonth()
+    const dueThisWeek = isCurrentMonth ? dueThisMonth.filter(sub => {
+        const billingDate = parseISO(sub.nextBillingDate)
+        return isWithinInterval(billingDate, { start: weekStart, end: weekEnd })
+    }) : []
+
+    // First half / second half split for non-current months
+    const midMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 15)
+    const firstHalf = dueThisMonth.filter(sub => {
+        const billingDate = parseISO(sub.nextBillingDate)
+        return billingDate <= midMonth
+    })
+    const secondHalf = dueThisMonth.filter(sub => {
+        const billingDate = parseISO(sub.nextBillingDate)
+        return billingDate > midMonth
     })
 
     const totalDueThisWeek = dueThisWeek.reduce((sum, sub) => sum + Number(sub.amount), 0)
     const totalDueThisMonth = dueThisMonth.reduce((sum, sub) => sum + Number(sub.amount), 0)
     const totalOverdue = overdue.reduce((sum, sub) => sum + Number(sub.amount), 0)
+
+    // Compute "later this month" bills: due this month but NOT this week and NOT overdue
+    const laterThisMonth = dueThisMonth.filter(sub => {
+        const billingDate = parseISO(sub.nextBillingDate)
+        const isOverdue = isBefore(billingDate, now)
+        const isDueThisWeek = isWithinInterval(billingDate, { start: weekStart, end: weekEnd })
+        return !isOverdue && !isDueThisWeek
+    })
 
     if (subscriptions.length === 0) {
         return (
@@ -128,14 +152,6 @@ export default function UpcomingPage() {
             </div>
         )
     }
-
-    // Compute "later this month" bills: due this month but NOT this week and NOT overdue
-    const laterThisMonth = dueThisMonth.filter(sub => {
-        const billingDate = parseISO(sub.nextBillingDate)
-        const isOverdue = isBefore(billingDate, now)
-        const isDueThisWeek = isWithinInterval(billingDate, { start: weekStart, end: weekEnd })
-        return !isOverdue && !isDueThisWeek
-    })
 
     const getDaysUntil = (dateStr: string) => {
         const date = parseISO(dateStr)
@@ -171,6 +187,21 @@ export default function UpcomingPage() {
                     </SubscriptionFormDialog>
                 </div>
 
+                {/* Month Selector */}
+                <div className="flex items-center justify-center">
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.06] backdrop-blur-sm">
+                        <Button variant="ghost" size="icon" onClick={goToPrevMonth} className="h-8 w-8 rounded-full hover:bg-white/[0.08]">
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm font-semibold min-w-[160px] text-center font-[family-name:var(--font-plus-jakarta)]">
+                            {format(selectedDate, "MMMM yyyy")}
+                        </span>
+                        <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8 rounded-full hover:bg-white/[0.08]">
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+
                 {/* Summary Stat Cards */}
                 <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {/* Overdue */}
@@ -192,17 +223,17 @@ export default function UpcomingPage() {
                         </div>
                     </div>
 
-                    {/* Due This Week */}
+                    {/* Due This Week / First Half */}
                     <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-[#F59E0B]/10 blur-3xl -mr-8 -mt-8" />
-                        <p className="text-muted-foreground text-sm font-medium mb-1">Due This Week</p>
+                        <p className="text-muted-foreground text-sm font-medium mb-1">{isCurrentMonth ? "Due This Week" : "1st – 15th"}</p>
                         <div className="flex items-end justify-between">
                             <div>
                                 <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)] text-[#F59E0B]">
-                                    ₹{totalDueThisWeek.toFixed(2)}
+                                    ₹{isCurrentMonth ? totalDueThisWeek.toFixed(2) : firstHalf.reduce((s, sub) => s + Number(sub.amount), 0).toFixed(2)}
                                 </h3>
                                 <p className="text-xs text-muted-foreground">
-                                    {dueThisWeek.length} {dueThisWeek.length === 1 ? "Bill" : "Bills"} arriving
+                                    {isCurrentMonth ? dueThisWeek.length : firstHalf.length} {(isCurrentMonth ? dueThisWeek.length : firstHalf.length) === 1 ? "Bill" : "Bills"}
                                 </p>
                             </div>
                             <div className="p-2 bg-[#F59E0B]/15 rounded-xl">
@@ -214,7 +245,7 @@ export default function UpcomingPage() {
                     {/* Due This Month */}
                     <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-[#3B82F6]/10 blur-3xl -mr-8 -mt-8" />
-                        <p className="text-muted-foreground text-sm font-medium mb-1">Due This Month</p>
+                        <p className="text-muted-foreground text-sm font-medium mb-1">Total Due</p>
                         <div className="flex items-end justify-between">
                             <div>
                                 <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)] text-[#3B82F6]">
@@ -230,17 +261,17 @@ export default function UpcomingPage() {
                         </div>
                     </div>
 
-                    {/* Next 30 Days */}
+                    {/* 16th onwards / Due This Month remaining */}
                     <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-[#00D4AA]/10 blur-3xl -mr-8 -mt-8" />
-                        <p className="text-muted-foreground text-sm font-medium mb-1">Next 30 Days</p>
+                        <p className="text-muted-foreground text-sm font-medium mb-1">{isCurrentMonth ? "Later This Month" : "16th – End"}</p>
                         <div className="flex items-end justify-between">
                             <div>
                                 <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)] text-[#00D4AA]">
-                                    ₹{dueNext30Days.reduce((sum, sub) => sum + Number(sub.amount), 0).toFixed(2)}
+                                    ₹{isCurrentMonth ? laterThisMonth.reduce((s, sub) => s + Number(sub.amount), 0).toFixed(2) : secondHalf.reduce((s, sub) => s + Number(sub.amount), 0).toFixed(2)}
                                 </h3>
                                 <p className="text-xs text-muted-foreground">
-                                    {dueNext30Days.length} {dueNext30Days.length === 1 ? "Bill" : "Bills"} upcoming
+                                    {isCurrentMonth ? laterThisMonth.length : secondHalf.length} {(isCurrentMonth ? laterThisMonth.length : secondHalf.length) === 1 ? "Bill" : "Bills"}
                                 </p>
                             </div>
                             <div className="p-2 bg-[#00D4AA]/15 rounded-xl">
