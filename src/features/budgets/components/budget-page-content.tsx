@@ -8,7 +8,6 @@ import { SafeToSpendCard } from "./safe-to-spend-card"
 import { BudgetFormDialog } from "./budget-form-dialog"
 import { BudgetCategoryCard } from "./budget-category-card"
 import { CarryForwardDialog } from "./carry-forward-dialog"
-import { BudgetAnalyticsSection } from "./budget-analytics-section"
 
 function getMonthString(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`
@@ -132,8 +131,6 @@ export function BudgetPageContent() {
                 </div>
             )}
 
-            {/* Analytics */}
-            <BudgetAnalyticsSection />
         </div>
     )
 }
