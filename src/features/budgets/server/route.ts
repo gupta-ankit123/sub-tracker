@@ -348,37 +348,26 @@ const app = new Hono()
 
         // Create virtual expense entries for subscriptions
         const budgetMonth = new Date(budget.month)
-        const budgetYear = budgetMonth.getUTCFullYear()
-        const budgetMon = budgetMonth.getUTCMonth()
+        const budgetMonthEnd = new Date(budgetMonth.getFullYear(), budgetMonth.getMonth() + 1, 0, 23, 59, 59)
         const subscriptionExpenses = subscriptions.map((sub) => {
-            // Check if the subscription was paid in this budget's month (UTC comparison)
+            // Check if the subscription was paid in this budget's month
             const lastPaid = sub.lastPaidDate ? new Date(sub.lastPaidDate) : null
             const paidThisMonth = lastPaid
-                && lastPaid.getUTCFullYear() === budgetYear
-                && lastPaid.getUTCMonth() === budgetMon
+                && lastPaid.getFullYear() === budgetMonth.getFullYear()
+                && lastPaid.getMonth() === budgetMonth.getMonth()
 
-            // Check if the next billing date falls within this budget's month (UTC comparison)
+            // Check if the next billing date falls within this budget's month
             const nextBilling = sub.nextBillingDate ? new Date(sub.nextBillingDate) : null
             const dueThisMonth = nextBilling
-                && nextBilling.getUTCFullYear() === budgetYear
-                && nextBilling.getUTCMonth() === budgetMon
-
-            // For projected subscriptions, calculate the expected date in this budget month
-            // using the day-of-month from nextBillingDate
-            let projectedDate = budgetMonth.toISOString()
-            if (nextBilling) {
-                const dayOfMonth = nextBilling.getUTCDate()
-                const lastDayOfBudgetMonth = new Date(Date.UTC(budgetYear, budgetMon + 1, 0)).getUTCDate()
-                const clampedDay = Math.min(dayOfMonth, lastDayOfBudgetMonth)
-                projectedDate = new Date(Date.UTC(budgetYear, budgetMon, clampedDay)).toISOString()
-            }
+                && nextBilling.getFullYear() === budgetMonth.getFullYear()
+                && nextBilling.getMonth() === budgetMonth.getMonth()
 
             const status = paidThisMonth ? "paid" : dueThisMonth ? "upcoming" : "projected"
             const displayDate = paidThisMonth && lastPaid
                 ? lastPaid.toISOString()
                 : dueThisMonth && nextBilling
                     ? nextBilling.toISOString()
-                    : projectedDate
+                    : budgetMonth.toISOString()
 
             return {
                 id: `sub_${sub.id}`,
@@ -397,6 +386,9 @@ const app = new Hono()
                 paymentStatus: status,
             }
         })
+
+
+
 
         const manualWithFlag = manualExpenses.map((e) => ({
             ...e,
