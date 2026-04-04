@@ -343,22 +343,52 @@ const app = new Hono()
         // Get active subscriptions matching this budget's category
         const subscriptions = await prisma.subscription.findMany({
             where: { userId: user.id, status: "ACTIVE", category: budget.category },
-            select: { id: true, name: true, amount: true, billingCycle: true, lastPaidDate: true },
+            select: { id: true, name: true, amount: true, billingCycle: true, lastPaidDate: true, nextBillingDate: true },
         })
 
         // Create virtual expense entries for subscriptions
         const budgetMonth = new Date(budget.month)
-        const subscriptionExpenses = subscriptions.map((sub) => ({
-            id: `sub_${sub.id}`,
-            budgetId: id,
-            description: sub.name,
-            amount: String(calculateMonthlyAmount(Number(sub.amount), sub.billingCycle).toFixed(2)),
-            date: sub.lastPaidDate || budgetMonth.toISOString(),
-            notes: `${sub.billingCycle.replace("_", " ").toLowerCase()} subscription`,
-            createdAt: budgetMonth.toISOString(),
-            updatedAt: budgetMonth.toISOString(),
-            isSubscription: true,
-        }))
+        const budgetMonthEnd = new Date(budgetMonth.getFullYear(), budgetMonth.getMonth() + 1, 0, 23, 59, 59)
+        const subscriptionExpenses = subscriptions.map((sub) => {
+            // Check if the subscription was paid in this budget's month
+            const lastPaid = sub.lastPaidDate ? new Date(sub.lastPaidDate) : null
+            const paidThisMonth = lastPaid
+                && lastPaid.getFullYear() === budgetMonth.getFullYear()
+                && lastPaid.getMonth() === budgetMonth.getMonth()
+
+            // Check if the next billing date falls within this budget's month
+            const nextBilling = sub.nextBillingDate ? new Date(sub.nextBillingDate) : null
+            const dueThisMonth = nextBilling
+                && nextBilling.getFullYear() === budgetMonth.getFullYear()
+                && nextBilling.getMonth() === budgetMonth.getMonth()
+
+            const status = paidThisMonth ? "paid" : dueThisMonth ? "upcoming" : "projected"
+            const displayDate = paidThisMonth && lastPaid
+                ? lastPaid.toISOString()
+                : dueThisMonth && nextBilling
+                    ? nextBilling.toISOString()
+                    : budgetMonth.toISOString()
+
+            return {
+                id: `sub_${sub.id}`,
+                budgetId: id,
+                description: sub.name,
+                amount: String(calculateMonthlyAmount(Number(sub.amount), sub.billingCycle).toFixed(2)),
+                date: displayDate,
+                notes: status === "paid"
+                    ? `${sub.billingCycle.replace("_", " ").toLowerCase()} subscription - paid`
+                    : status === "upcoming"
+                        ? `${sub.billingCycle.replace("_", " ").toLowerCase()} subscription - upcoming`
+                        : `${sub.billingCycle.replace("_", " ").toLowerCase()} subscription - projected`,
+                createdAt: budgetMonth.toISOString(),
+                updatedAt: budgetMonth.toISOString(),
+                isSubscription: true,
+                paymentStatus: status,
+            }
+        })
+
+
+
 
         const manualWithFlag = manualExpenses.map((e) => ({
             ...e,

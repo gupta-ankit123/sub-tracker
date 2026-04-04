@@ -33,19 +33,31 @@ export function ExpenseList({ budgetId }: ExpenseListProps) {
             <TableBody>
                 {expenses.map((expense) => {
                     const isSub = "isSubscription" in expense && expense.isSubscription
+                    const paymentStatus = "paymentStatus" in expense ? expense.paymentStatus as string : null
                     return (
                         <TableRow key={expense.id}>
                             <TableCell>
                                 <div className="flex items-center gap-2">
                                     {isSub && <CreditCard className="h-3.5 w-3.5 text-blue-500 shrink-0" />}
                                     <span className="font-medium">{expense.description}</span>
-                                    {isSub && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Subscription</Badge>}
+                                    {isSub && paymentStatus === "paid" && (
+                                        <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-0">Paid</Badge>
+                                    )}
+                                    {isSub && paymentStatus === "upcoming" && (
+                                        <Badge className="text-[10px] px-1.5 py-0 bg-blue-500/15 text-blue-400 border-0">Upcoming</Badge>
+                                    )}
+                                    {isSub && paymentStatus === "projected" && (
+                                        <Badge className="text-[10px] px-1.5 py-0 bg-yellow-500/15 text-yellow-400 border-0">Projected</Badge>
+                                    )}
+                                    {isSub && !paymentStatus && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Subscription</Badge>}
                                 </div>
-                                {isSub && "notes" in expense && expense.notes && (
-                                    <p className="text-xs text-muted-foreground mt-0.5">{expense.notes}</p>
-                                )}
                             </TableCell>
-                            <TableCell>{new Date(expense.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</TableCell>
+                            <TableCell>
+                                {paymentStatus === "upcoming" || paymentStatus === "projected"
+                                    ? <span className="text-muted-foreground italic">Due {new Date(expense.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+                                    : new Date(expense.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+                                }
+                            </TableCell>
                             <TableCell className="text-right">₹{Number(expense.amount).toLocaleString("en-IN")}</TableCell>
                             <TableCell>
                                 {!isSub && (

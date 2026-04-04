@@ -364,38 +364,42 @@ export function SubscriptionList() {
             color: getCategoryColor(index)
         }))
 
-    // Upcoming bills computation
-    const next30Days = addDays(now, 30)
+    // Upcoming bills computation — project billing dates into selected month
+    type ProjectedSub = Subscription & { projectedDate: Date }
 
-    const overdueBills = subscriptions.filter(sub => {
-        if (sub.status !== "ACTIVE") return false
+    const projectedUpcomingSubs: ProjectedSub[] = subscriptions
+        .filter(sub => sub.status === "ACTIVE")
+        .map(sub => {
+            const projectedDate = getProjectedDateInMonth(sub.nextBillingDate, sub.billingCycle, monthStart, monthEnd)
+            if (!projectedDate) return null
+            return { ...sub, projectedDate }
+        })
+        .filter((s): s is ProjectedSub => s !== null)
+
+    const overdueBills = projectedUpcomingSubs.filter(sub => {
         if (sub.paymentStatus === "SUCCESS" || sub.paymentStatus === "SKIPPED") return false
-        const billingDate = parseISO(sub.nextBillingDate)
-        return isBefore(billingDate, now)
+        const lastPaid = sub.lastPaidDate ? parseISO(sub.lastPaidDate) : null
+        const paidThisMonth = lastPaid
+            && lastPaid.getFullYear() === monthStart.getFullYear()
+            && lastPaid.getMonth() === monthStart.getMonth()
+        if (paidThisMonth) return false
+        return isBefore(sub.projectedDate, now)
     })
 
-    const dueThisWeekBills = subscriptions.filter(sub => {
-        if (sub.status !== "ACTIVE") return false
-        const billingDate = parseISO(sub.nextBillingDate)
-        return isWithinInterval(billingDate, { start: weekStart, end: weekEnd })
+    const dueThisWeekBills = isCurrentMonth ? projectedUpcomingSubs.filter(sub => {
+        return isWithinInterval(sub.projectedDate, { start: weekStart, end: weekEnd })
+    }) : []
+
+    const dueThisMonthBills = projectedUpcomingSubs
+
+    const next30Days = addDays(now, 30)
+    const dueNext30DaysBills = projectedUpcomingSubs.filter(sub => {
+        return isWithinInterval(sub.projectedDate, { start: now, end: next30Days })
     })
 
-    const dueThisMonthBills = subscriptions.filter(sub => {
-        if (sub.status !== "ACTIVE") return false
-        const billingDate = parseISO(sub.nextBillingDate)
-        return isWithinInterval(billingDate, { start: monthStart, end: monthEnd })
-    })
-
-    const dueNext30DaysBills = subscriptions.filter(sub => {
-        if (sub.status !== "ACTIVE") return false
-        const billingDate = parseISO(sub.nextBillingDate)
-        return isWithinInterval(billingDate, { start: now, end: next30Days })
-    })
-
-    const laterThisMonthBills = dueThisMonthBills.filter(sub => {
-        const billingDate = parseISO(sub.nextBillingDate)
-        const isOverdue = isBefore(billingDate, now)
-        const isDueThisWeek = isWithinInterval(billingDate, { start: weekStart, end: weekEnd })
+    const laterThisMonthBills = projectedUpcomingSubs.filter(sub => {
+        const isOverdue = isBefore(sub.projectedDate, now)
+        const isDueThisWeek = isCurrentMonth && isWithinInterval(sub.projectedDate, { start: weekStart, end: weekEnd })
         return !isOverdue && !isDueThisWeek
     })
 
@@ -416,36 +420,48 @@ export function SubscriptionList() {
         return `Due in ${days} days`
     }
 
-    // Billing history computation — use date-based overdue detection (same as upcoming view)
-    const isOverdueByDate = (sub: Subscription) => {
-        if (sub.paymentStatus === "OVERDUE" || sub.paymentStatus === "FAILED") return true
-        if (sub.status === "ACTIVE" && sub.paymentStatus !== "SUCCESS" && sub.paymentStatus !== "SKIPPED") {
-            return isBefore(parseISO(sub.nextBillingDate), now)
-        }
-        return false
-    }
+    // Billing history computation — project dates into selected month
+    type HistoryProjectedSub = Subscription & { projectedDate: Date; effectiveStatus: string }
 
-    const totalPaid = subscriptions
-        .filter(item => item.paymentStatus === "SUCCESS")
+    const historyProjectedSubs: HistoryProjectedSub[] = subscriptions
+        .filter(sub => sub.status === "ACTIVE" || sub.status === "PAUSED")
+        .map(sub => {
+            const projectedDate = getProjectedDateInMonth(sub.nextBillingDate, sub.billingCycle, monthStart, monthEnd)
+            if (!projectedDate) return null
+
+            const lastPaid = sub.lastPaidDate ? parseISO(sub.lastPaidDate) : null
+            const paidThisMonth = lastPaid
+                && lastPaid.getFullYear() === monthStart.getFullYear()
+                && lastPaid.getMonth() === monthStart.getMonth()
+
+            let effectiveStatus: string
+            if (paidThisMonth) {
+                effectiveStatus = "SUCCESS"
+            } else if (isBefore(projectedDate, now)) {
+                effectiveStatus = "OVERDUE"
+            } else {
+                effectiveStatus = "PENDING"
+            }
+
+            return { ...sub, projectedDate, effectiveStatus }
+        })
+        .filter((s): s is HistoryProjectedSub => s !== null)
+
+    const totalPaid = historyProjectedSubs
+        .filter(item => item.effectiveStatus === "SUCCESS")
         .reduce((sum, item) => sum + Number(item.amount), 0)
 
-    const overdueSubIds = new Set(subscriptions.filter(isOverdueByDate).map(s => s.id))
-
-    const totalPending = subscriptions
-        .filter(item => item.paymentStatus === "PENDING" && !overdueSubIds.has(item.id))
+    const totalPending = historyProjectedSubs
+        .filter(item => item.effectiveStatus === "PENDING")
         .reduce((sum, item) => sum + Number(item.amount), 0)
 
-    const totalOverduePayments = subscriptions
-        .filter(item => isOverdueByDate(item))
+    const totalOverduePayments = historyProjectedSubs
+        .filter(item => item.effectiveStatus === "OVERDUE")
         .reduce((sum, item) => sum + Number(item.amount), 0)
 
     const historyFilteredSubs = historyFilter === "all"
-        ? subscriptions
-        : historyFilter === "OVERDUE"
-            ? subscriptions.filter(item => isOverdueByDate(item))
-            : historyFilter === "PENDING"
-                ? subscriptions.filter(item => item.paymentStatus === "PENDING" && !overdueSubIds.has(item.id))
-                : subscriptions.filter(item => item.paymentStatus === historyFilter)
+        ? historyProjectedSubs
+        : historyProjectedSubs.filter(item => item.effectiveStatus === historyFilter)
 
     const historySearchedSubs = historySearch
         ? historyFilteredSubs.filter(item =>
@@ -612,6 +628,21 @@ export function SubscriptionList() {
             {/* ========== UPCOMING VIEW ========== */}
             {statusFilter === "UPCOMING" && (
                 <div className="space-y-10">
+                    {/* Month Selector */}
+                    <div className="flex items-center justify-center">
+                        <div className="flex items-center gap-2 px-2 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.06] backdrop-blur-sm">
+                            <Button variant="ghost" size="icon" onClick={goToPrevMonth} className="h-8 w-8 rounded-full hover:bg-white/[0.08]">
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span className="text-sm font-semibold min-w-[160px] text-center font-[family-name:var(--font-plus-jakarta)]">
+                                {format(selectedDate, "MMMM yyyy")}
+                            </span>
+                            <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8 rounded-full hover:bg-white/[0.08]">
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+
                     {/* Summary Stat Cards */}
                     <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="glass-card rounded-2xl p-6 relative overflow-hidden">
@@ -717,7 +748,7 @@ export function SubscriptionList() {
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <span className="text-xs font-bold text-[#EF4444] uppercase tracking-wider">
-                                                    Was due: {new Date(sub.nextBillingDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                                    Was due: {sub.projectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                                                 </span>
                                                 <span className="h-1 w-1 rounded-full bg-white/20" />
                                                 <span className="text-xs text-[#7A8BA8]">{sub.billingCycle}</span>
@@ -765,10 +796,10 @@ export function SubscriptionList() {
                                             <div className="flex-grow">
                                                 <h4 className="font-bold text-base font-[family-name:var(--font-plus-jakarta)]">{sub.name}</h4>
                                                 <div className="flex items-center gap-3">
-                                                    <span className="text-xs text-[#7A8BA8]">{formatDueLabel(sub.nextBillingDate)}</span>
+                                                    <span className="text-xs text-[#7A8BA8]">{formatDueLabel(sub.projectedDate.toISOString())}</span>
                                                     <span className="h-0.5 w-0.5 rounded-full bg-white/20" />
                                                     <span className="text-xs text-[#7A8BA8]">
-                                                        {new Date(sub.nextBillingDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                                        {sub.projectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                                                     </span>
                                                 </div>
                                             </div>
@@ -825,7 +856,7 @@ export function SubscriptionList() {
                                             <div>
                                                 <h5 className="font-bold text-sm font-[family-name:var(--font-plus-jakarta)]">{sub.name}</h5>
                                                 <p className="text-[10px] text-[#7A8BA8]">
-                                                    {new Date(sub.nextBillingDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} &bull; {sub.billingCycle}
+                                                    {sub.projectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} &bull; {sub.billingCycle}
                                                 </p>
                                             </div>
                                         </div>
@@ -849,6 +880,21 @@ export function SubscriptionList() {
             {/* ========== HISTORY VIEW ========== */}
             {statusFilter === "HISTORY" && (
                 <div className="space-y-8">
+                    {/* Month Selector */}
+                    <div className="flex items-center justify-center">
+                        <div className="flex items-center gap-2 px-2 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.06] backdrop-blur-sm">
+                            <Button variant="ghost" size="icon" onClick={goToPrevMonth} className="h-8 w-8 rounded-full hover:bg-white/[0.08]">
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span className="text-sm font-semibold min-w-[160px] text-center font-[family-name:var(--font-plus-jakarta)]">
+                                {format(selectedDate, "MMMM yyyy")}
+                            </span>
+                            <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8 rounded-full hover:bg-white/[0.08]">
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+
                     {/* Stat Cards */}
                     <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="glass-card p-6 rounded-2xl flex items-center gap-5">
@@ -859,7 +905,7 @@ export function SubscriptionList() {
                                 <p className="text-[#7A8BA8] text-xs uppercase tracking-widest font-bold mb-1">Total Paid</p>
                                 <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)]">₹{totalPaid.toFixed(2)}</h3>
                                 <p className="text-xs text-[#46f1c5] mt-1 font-medium">
-                                    {subscriptions.filter(h => h.paymentStatus === "SUCCESS").length} payments
+                                    {historyProjectedSubs.filter(h => h.effectiveStatus === "SUCCESS").length} payments
                                 </p>
                             </div>
                         </div>
@@ -871,7 +917,7 @@ export function SubscriptionList() {
                                 <p className="text-[#7A8BA8] text-xs uppercase tracking-widest font-bold mb-1">Pending</p>
                                 <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)]">₹{totalPending.toFixed(2)}</h3>
                                 <p className="text-xs text-amber-500 mt-1 font-medium">
-                                    {subscriptions.filter(h => h.paymentStatus === "PENDING" && !overdueSubIds.has(h.id)).length} items due soon
+                                    {historyProjectedSubs.filter(h => h.effectiveStatus === "PENDING").length} items due soon
                                 </p>
                             </div>
                         </div>
@@ -883,7 +929,7 @@ export function SubscriptionList() {
                                 <p className="text-[#7A8BA8] text-xs uppercase tracking-widest font-bold mb-1">Overdue</p>
                                 <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)]">₹{totalOverduePayments.toFixed(2)}</h3>
                                 <p className="text-xs text-[#ffb4ab] mt-1 font-medium">
-                                    {subscriptions.filter(h => isOverdueByDate(h)).length} missed payments
+                                    {historyProjectedSubs.filter(h => h.effectiveStatus === "OVERDUE").length} missed payments
                                 </p>
                             </div>
                         </div>
@@ -939,10 +985,8 @@ export function SubscriptionList() {
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
                                         {historySearchedSubs.map((item) => {
-                                            const itemIsOverdue = isOverdueByDate(item)
-                                            const effectiveStatus = itemIsOverdue ? "OVERDUE" : item.paymentStatus
-                                            const iconColor = getIconColor(effectiveStatus)
-                                            const relativeTime = getRelativeTime(item.nextBillingDate, effectiveStatus)
+                                            const iconColor = getIconColor(item.effectiveStatus)
+                                            const relativeTime = getRelativeTime(item.projectedDate.toISOString(), item.effectiveStatus)
                                             return (
                                                 <tr key={item.id} className="hover:bg-white/5 transition-colors">
                                                     <td className="px-8 py-6">
@@ -963,7 +1007,7 @@ export function SubscriptionList() {
                                                     </td>
                                                     <td className="px-8 py-6">
                                                         <p className="text-sm font-medium">
-                                                            {new Date(item.nextBillingDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                                                            {item.projectedDate.toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
                                                         </p>
                                                         <p className={`text-[10px] font-bold uppercase tracking-tighter ${relativeTime.className}`}>
                                                             {relativeTime.text}
@@ -975,12 +1019,12 @@ export function SubscriptionList() {
                                                         </span>
                                                     </td>
                                                     <td className="px-8 py-6 text-center">
-                                                        <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getStatusBadgeClass(effectiveStatus)}`}>
-                                                            {getStatusLabel(effectiveStatus)}
+                                                        <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getStatusBadgeClass(item.effectiveStatus)}`}>
+                                                            {getStatusLabel(item.effectiveStatus)}
                                                         </span>
                                                     </td>
                                                     <td className="px-8 py-6 text-right">
-                                                        {(item.paymentStatus === "PENDING" || itemIsOverdue) && item.paymentStatus !== "SUCCESS" && item.paymentStatus !== "SKIPPED" ? (
+                                                        {item.effectiveStatus === "PENDING" || item.effectiveStatus === "OVERDUE" ? (
                                                             <div className="flex justify-end gap-2">
                                                                 <button
                                                                     onClick={() => markAsPaidMutation.mutate({ param: { id: item.id } })}
