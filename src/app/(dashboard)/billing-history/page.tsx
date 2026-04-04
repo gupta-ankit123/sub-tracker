@@ -6,10 +6,46 @@ import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
 import { CreditCard, CheckCircle, Clock, Filter, ChevronLeft, ChevronRight } from "lucide-react"
 import { useState } from "react"
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO, isWithinInterval } from "date-fns"
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, addDays, parseISO, isWithinInterval, isBefore } from "date-fns"
 import { useMarkAsPaid } from "@/features/subscriptions/api/use-mark-as-paid"
 import { useSkipPayment } from "@/features/subscriptions/api/use-skip-payment"
 import { Check, SkipForward } from "lucide-react"
+
+function advanceByCycle(date: Date, cycle: string): Date {
+    switch (cycle) {
+        case "WEEKLY": return addDays(date, 7)
+        case "MONTHLY": return addMonths(date, 1)
+        case "QUARTERLY": return addMonths(date, 3)
+        case "SEMI_ANNUAL": return addMonths(date, 6)
+        case "ANNUAL": return addMonths(date, 12)
+        default: return addMonths(date, 1)
+    }
+}
+
+function rewindByCycle(date: Date, cycle: string): Date {
+    switch (cycle) {
+        case "WEEKLY": return addDays(date, -7)
+        case "MONTHLY": return subMonths(date, 1)
+        case "QUARTERLY": return subMonths(date, 3)
+        case "SEMI_ANNUAL": return subMonths(date, 6)
+        case "ANNUAL": return subMonths(date, 12)
+        default: return subMonths(date, 1)
+    }
+}
+
+function getProjectedDateInMonth(nextBillingDate: string, billingCycle: string, mStart: Date, mEnd: Date): Date | null {
+    const anchor = parseISO(nextBillingDate)
+    if (billingCycle === "ONE_TIME") {
+        return isWithinInterval(anchor, { start: mStart, end: mEnd }) ? anchor : null
+    }
+    let fwd = anchor
+    while (fwd < mStart) { fwd = advanceByCycle(fwd, billingCycle) }
+    if (isWithinInterval(fwd, { start: mStart, end: mEnd })) return fwd
+    let bwd = anchor
+    while (bwd > mEnd) { bwd = rewindByCycle(bwd, billingCycle) }
+    if (isWithinInterval(bwd, { start: mStart, end: mEnd })) return bwd
+    return null
+}
 
 interface Subscription {
     id: string
@@ -97,18 +133,41 @@ export default function BillingHistoryPage() {
     }
 
     const allSubscriptions: Subscription[] = data?.data || []
+    const now = new Date()
 
-    // Scope to the selected month
+    // Scope to the selected month using projected billing dates
     const mStart = startOfMonth(selectedDate)
     const mEnd = endOfMonth(selectedDate)
-    const subscriptions = allSubscriptions.filter(sub => {
-        const billingDate = parseISO(sub.nextBillingDate)
-        return isWithinInterval(billingDate, { start: mStart, end: mEnd })
-    })
+
+    // Project each subscription into the selected month
+    const projectedSubs = allSubscriptions
+        .filter(sub => sub.status === "ACTIVE" || sub.status === "PAUSED")
+        .map(sub => {
+            const projectedDate = getProjectedDateInMonth(sub.nextBillingDate, sub.billingCycle, mStart, mEnd)
+            if (!projectedDate) return null
+
+            // Determine payment status for this projected month
+            const lastPaid = sub.lastPaidDate ? parseISO(sub.lastPaidDate) : null
+            const paidThisMonth = lastPaid
+                && lastPaid.getFullYear() === mStart.getFullYear()
+                && lastPaid.getMonth() === mStart.getMonth()
+
+            let effectiveStatus: string
+            if (paidThisMonth) {
+                effectiveStatus = "SUCCESS"
+            } else if (isBefore(projectedDate, now)) {
+                effectiveStatus = "OVERDUE"
+            } else {
+                effectiveStatus = "PENDING"
+            }
+
+            return { ...sub, projectedDate, effectiveStatus }
+        })
+        .filter((s): s is NonNullable<typeof s> => s !== null)
 
     const filteredSubscriptions = filter === "all"
-        ? subscriptions
-        : subscriptions.filter(item => item.paymentStatus === filter)
+        ? projectedSubs
+        : projectedSubs.filter(item => item.effectiveStatus === filter)
 
     const searchedSubscriptions = searchQuery
         ? filteredSubscriptions.filter(item =>
@@ -117,16 +176,16 @@ export default function BillingHistoryPage() {
         )
         : filteredSubscriptions
 
-    const totalPaid = subscriptions
-        .filter(item => item.paymentStatus === "SUCCESS")
+    const totalPaid = projectedSubs
+        .filter(item => item.effectiveStatus === "SUCCESS")
         .reduce((sum, item) => sum + Number(item.amount), 0)
 
-    const totalPending = subscriptions
-        .filter(item => item.paymentStatus === "PENDING")
+    const totalPending = projectedSubs
+        .filter(item => item.effectiveStatus === "PENDING")
         .reduce((sum, item) => sum + Number(item.amount), 0)
 
-    const totalOverdue = subscriptions
-        .filter(item => item.paymentStatus === "OVERDUE" || item.paymentStatus === "FAILED")
+    const totalOverdue = projectedSubs
+        .filter(item => item.effectiveStatus === "OVERDUE")
         .reduce((sum, item) => sum + Number(item.amount), 0)
 
     const getStatusIcon = (status: string) => {
@@ -203,7 +262,6 @@ export default function BillingHistoryPage() {
         { value: "SUCCESS", label: "Paid" },
         { value: "PENDING", label: "Pending" },
         { value: "OVERDUE", label: "Overdue" },
-        { value: "SKIPPED", label: "Skipped" },
     ]
 
     if (allSubscriptions.length === 0) {
@@ -269,7 +327,7 @@ export default function BillingHistoryPage() {
                             <p className="text-[#bacac2] text-xs uppercase tracking-widest font-bold mb-1">Total Paid</p>
                             <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)]">₹{totalPaid.toFixed(2)}</h3>
                             <p className="text-xs text-[#46f1c5] mt-1 font-medium">
-                                {subscriptions.filter(h => h.paymentStatus === "SUCCESS").length} payments
+                                {projectedSubs.filter(h => h.effectiveStatus === "SUCCESS").length} payments
                             </p>
                         </div>
                     </div>
@@ -283,7 +341,7 @@ export default function BillingHistoryPage() {
                             <p className="text-[#bacac2] text-xs uppercase tracking-widest font-bold mb-1">Pending</p>
                             <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)]">₹{totalPending.toFixed(2)}</h3>
                             <p className="text-xs text-amber-500 mt-1 font-medium">
-                                {subscriptions.filter(h => h.paymentStatus === "PENDING").length} items pending
+                                {projectedSubs.filter(h => h.effectiveStatus === "PENDING").length} items pending
                             </p>
                         </div>
                     </div>
@@ -297,7 +355,7 @@ export default function BillingHistoryPage() {
                             <p className="text-[#bacac2] text-xs uppercase tracking-widest font-bold mb-1">Overdue</p>
                             <h3 className="text-2xl font-bold font-[family-name:var(--font-plus-jakarta)]">₹{totalOverdue.toFixed(2)}</h3>
                             <p className="text-xs text-[#ffb4ab] mt-1 font-medium">
-                                {subscriptions.filter(h => h.paymentStatus === "OVERDUE" || h.paymentStatus === "FAILED").length} missed payments
+                                {projectedSubs.filter(h => h.effectiveStatus === "OVERDUE").length} missed payments
                             </p>
                         </div>
                     </div>
@@ -358,8 +416,8 @@ export default function BillingHistoryPage() {
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
                                     {searchedSubscriptions.map((item) => {
-                                        const iconColor = getIconColor(item.paymentStatus)
-                                        const relativeTime = getRelativeTime(item.nextBillingDate, item.paymentStatus)
+                                        const iconColor = getIconColor(item.effectiveStatus)
+                                        const relativeTime = getRelativeTime(item.projectedDate.toISOString(), item.effectiveStatus)
 
                                         return (
                                             <tr key={item.id} className="hover:bg-white/5 transition-colors group">
@@ -388,7 +446,7 @@ export default function BillingHistoryPage() {
                                                 {/* Due Date */}
                                                 <td className="px-8 py-6">
                                                     <p className="text-sm font-medium">
-                                                        {new Date(item.nextBillingDate).toLocaleDateString("en-IN", {
+                                                        {item.projectedDate.toLocaleDateString("en-IN", {
                                                             month: "short",
                                                             day: "numeric",
                                                             year: "numeric",
@@ -408,14 +466,14 @@ export default function BillingHistoryPage() {
 
                                                 {/* Status */}
                                                 <td className="px-8 py-6 text-center">
-                                                    <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getStatusBadgeClass(item.paymentStatus)}`}>
-                                                        {getStatusLabel(item.paymentStatus)}
+                                                    <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getStatusBadgeClass(item.effectiveStatus)}`}>
+                                                        {getStatusLabel(item.effectiveStatus)}
                                                     </span>
                                                 </td>
 
                                                 {/* Actions */}
                                                 <td className="px-8 py-6 text-right">
-                                                    {item.paymentStatus === "PENDING" || item.paymentStatus === "OVERDUE" ? (
+                                                    {item.effectiveStatus === "PENDING" || item.effectiveStatus === "OVERDUE" ? (
                                                         <div className="flex justify-end gap-2">
                                                             <button
                                                                 onClick={() => markAsPaidMutation.mutate({
@@ -435,15 +493,7 @@ export default function BillingHistoryPage() {
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <div className="text-[#bacac2]/40">
-                                                            <button className="w-10 h-10 flex items-center justify-center hover:text-white rounded-full transition-all ml-auto">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                                                    <circle cx="12" cy="5" r="1.5" />
-                                                                    <circle cx="12" cy="12" r="1.5" />
-                                                                    <circle cx="12" cy="19" r="1.5" />
-                                                                </svg>
-                                                            </button>
-                                                        </div>
+                                                        <span className="text-[#bacac2]/40 text-xs">—</span>
                                                     )}
                                                 </td>
                                             </tr>

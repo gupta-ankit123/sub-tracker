@@ -8,6 +8,42 @@ import { SubscriptionFormDialog } from "@/features/subscriptions/components/subs
 import { Plus, Calendar, Clock, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO, isWithinInterval, isBefore, addDays, format, addMonths, subMonths } from "date-fns"
 
+function advanceByCycle(date: Date, cycle: string): Date {
+    switch (cycle) {
+        case "WEEKLY": return addDays(date, 7)
+        case "MONTHLY": return addMonths(date, 1)
+        case "QUARTERLY": return addMonths(date, 3)
+        case "SEMI_ANNUAL": return addMonths(date, 6)
+        case "ANNUAL": return addMonths(date, 12)
+        default: return addMonths(date, 1)
+    }
+}
+
+function rewindByCycle(date: Date, cycle: string): Date {
+    switch (cycle) {
+        case "WEEKLY": return addDays(date, -7)
+        case "MONTHLY": return subMonths(date, 1)
+        case "QUARTERLY": return subMonths(date, 3)
+        case "SEMI_ANNUAL": return subMonths(date, 6)
+        case "ANNUAL": return subMonths(date, 12)
+        default: return subMonths(date, 1)
+    }
+}
+
+function getProjectedDateInMonth(nextBillingDate: string, billingCycle: string, mStart: Date, mEnd: Date): Date | null {
+    const anchor = parseISO(nextBillingDate)
+    if (billingCycle === "ONE_TIME") {
+        return isWithinInterval(anchor, { start: mStart, end: mEnd }) ? anchor : null
+    }
+    let fwd = anchor
+    while (fwd < mStart) { fwd = advanceByCycle(fwd, billingCycle) }
+    if (isWithinInterval(fwd, { start: mStart, end: mEnd })) return fwd
+    let bwd = anchor
+    while (bwd > mEnd) { bwd = rewindByCycle(bwd, billingCycle) }
+    if (isWithinInterval(bwd, { start: mStart, end: mEnd })) return bwd
+    return null
+}
+
 interface Subscription {
     id: string
     name: string
@@ -82,36 +118,32 @@ export default function UpcomingPage() {
     const weekStart = startOfWeek(now)
     const weekEnd = endOfWeek(now)
 
-    // Bills due in the selected month
-    const dueThisMonth = subscriptions.filter(sub => {
-        if (sub.status !== "ACTIVE") return false
-        const billingDate = parseISO(sub.nextBillingDate)
-        return isWithinInterval(billingDate, { start: monthStart, end: monthEnd })
-    })
+    const isCurrentMonth = selectedDate.getFullYear() === now.getFullYear() && selectedDate.getMonth() === now.getMonth()
+
+    // Project billing dates into the selected month
+    type ProjectedSub = Subscription & { projectedDate: Date }
+
+    const dueThisMonth: ProjectedSub[] = subscriptions
+        .filter(sub => sub.status === "ACTIVE")
+        .map(sub => {
+            const projectedDate = getProjectedDateInMonth(sub.nextBillingDate, sub.billingCycle, monthStart, monthEnd)
+            if (!projectedDate) return null
+            return { ...sub, projectedDate }
+        })
+        .filter((s): s is ProjectedSub => s !== null)
 
     // Overdue: bills in the selected month that are past today
-    const overdue = dueThisMonth.filter(sub => {
-        const billingDate = parseISO(sub.nextBillingDate)
-        return isBefore(billingDate, now)
-    })
+    const overdue = dueThisMonth.filter(sub => isBefore(sub.projectedDate, now))
 
     // Due this week (only relevant when viewing the current month)
-    const isCurrentMonth = selectedDate.getFullYear() === now.getFullYear() && selectedDate.getMonth() === now.getMonth()
     const dueThisWeek = isCurrentMonth ? dueThisMonth.filter(sub => {
-        const billingDate = parseISO(sub.nextBillingDate)
-        return isWithinInterval(billingDate, { start: weekStart, end: weekEnd })
+        return isWithinInterval(sub.projectedDate, { start: weekStart, end: weekEnd })
     }) : []
 
     // First half / second half split for non-current months
     const midMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 15)
-    const firstHalf = dueThisMonth.filter(sub => {
-        const billingDate = parseISO(sub.nextBillingDate)
-        return billingDate <= midMonth
-    })
-    const secondHalf = dueThisMonth.filter(sub => {
-        const billingDate = parseISO(sub.nextBillingDate)
-        return billingDate > midMonth
-    })
+    const firstHalf = dueThisMonth.filter(sub => sub.projectedDate <= midMonth)
+    const secondHalf = dueThisMonth.filter(sub => sub.projectedDate > midMonth)
 
     const totalDueThisWeek = dueThisWeek.reduce((sum, sub) => sum + Number(sub.amount), 0)
     const totalDueThisMonth = dueThisMonth.reduce((sum, sub) => sum + Number(sub.amount), 0)
@@ -119,9 +151,8 @@ export default function UpcomingPage() {
 
     // Compute "later this month" bills: due this month but NOT this week and NOT overdue
     const laterThisMonth = dueThisMonth.filter(sub => {
-        const billingDate = parseISO(sub.nextBillingDate)
-        const isOverdue = isBefore(billingDate, now)
-        const isDueThisWeek = isWithinInterval(billingDate, { start: weekStart, end: weekEnd })
+        const isOverdue = isBefore(sub.projectedDate, now)
+        const isDueThisWeek = isCurrentMonth && isWithinInterval(sub.projectedDate, { start: weekStart, end: weekEnd })
         return !isOverdue && !isDueThisWeek
     })
 
@@ -311,7 +342,7 @@ export default function UpcomingPage() {
                                         </div>
                                         <div className="flex items-center gap-3">
                                             <span className="text-xs font-bold text-[#EF4444] uppercase tracking-wider">
-                                                Was due: {new Date(sub.nextBillingDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                                Was due: {sub.projectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                                             </span>
                                             <span className="h-1 w-1 rounded-full bg-white/20" />
                                             <span className="text-xs text-muted-foreground">{sub.billingCycle}</span>
@@ -362,10 +393,10 @@ export default function UpcomingPage() {
                                         <div className="flex-grow">
                                             <h4 className="font-bold text-base font-[family-name:var(--font-plus-jakarta)]">{sub.name}</h4>
                                             <div className="flex items-center gap-3">
-                                                <span className="text-xs text-muted-foreground">{formatDueLabel(sub.nextBillingDate)}</span>
+                                                <span className="text-xs text-muted-foreground">{formatDueLabel(sub.projectedDate.toISOString())}</span>
                                                 <span className="h-0.5 w-0.5 rounded-full bg-white/20" />
                                                 <span className="text-xs text-muted-foreground">
-                                                    {new Date(sub.nextBillingDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                                    {sub.projectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                                                 </span>
                                             </div>
                                         </div>
@@ -421,7 +452,7 @@ export default function UpcomingPage() {
                                         <div>
                                             <h5 className="font-bold text-sm font-[family-name:var(--font-plus-jakarta)]">{sub.name}</h5>
                                             <p className="text-[10px] text-muted-foreground">
-                                                {new Date(sub.nextBillingDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} &bull; {sub.billingCycle}
+                                                {sub.projectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} &bull; {sub.billingCycle}
                                             </p>
                                         </div>
                                     </div>
