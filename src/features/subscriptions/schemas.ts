@@ -108,3 +108,12 @@ export const createBillingHistorySchema = z.object({
 export const updateBillingHistoryStatusSchema = z.object({
     paymentStatus: z.enum(["PENDING", "SUCCESS", "FAILED", "REFUNDED"])
 })
+
+export const bulkIdsSchema = z.object({
+    ids: z.array(z.string().min(1)).min(1, "At least one subscription ID is required").max(100),
+})
+
+export const bulkCategoryChangeSchema = z.object({
+    ids: z.array(z.string().min(1)).min(1, "At least one subscription ID is required").max(100),
+    category: z.string().min(1, "Category is required").max(100),
+})

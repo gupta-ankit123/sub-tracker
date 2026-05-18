@@ -7,5 +7,8 @@ export default async function DashboardPage() {
     if (!user) {
         redirect('/sign-in')
     }
+    if (!user.onboardingCompleted) {
+        redirect('/setup')
+    }
     return <DashboardContent userName={user.name} />;
 }

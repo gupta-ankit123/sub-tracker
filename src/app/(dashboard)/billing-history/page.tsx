@@ -10,6 +10,7 @@ import { format, startOfMonth, endOfMonth, addMonths, subMonths, addDays, parseI
 import { useMarkAsPaid } from "@/features/subscriptions/api/use-mark-as-paid"
 import { useSkipPayment } from "@/features/subscriptions/api/use-skip-payment"
 import { Check, SkipForward } from "lucide-react"
+import { EmptyState } from "@/components/empty-state"
 
 function advanceByCycle(date: Date, cycle: string): Date {
     switch (cycle) {
@@ -272,21 +273,19 @@ export default function BillingHistoryPage() {
                         <h1 className="text-4xl font-bold font-[family-name:var(--font-plus-jakarta)] tracking-tight">Billing History</h1>
                         <p className="text-[#bacac2] mt-2 text-sm max-w-md">Manage and track your past and upcoming payments with luminous precision.</p>
                     </div>
-                    <div className="flex flex-col items-center justify-center py-20 px-8 glass-card rounded-[2rem]">
-                        <div className="w-16 h-16 rounded-2xl bg-[#46f1c5]/10 flex items-center justify-center mb-6">
-                            <CreditCard className="h-8 w-8 text-[#46f1c5]" />
-                        </div>
-                        <div className="text-center mb-8">
-                            <h3 className="text-xl font-semibold font-[family-name:var(--font-plus-jakarta)] tracking-tight">No subscriptions yet</h3>
-                            <p className="text-[#bacac2]/60 mt-2 text-[15px]">Add subscriptions to track billing.</p>
-                        </div>
-                        <SubscriptionFormDialog>
-                            <Button className="bg-[#00D4AA] hover:bg-[#00D4AA]/90 text-black font-semibold rounded-xl px-6 h-11">
-                                <CreditCard className="mr-2 h-4 w-4" />
-                                Add Subscription
-                            </Button>
-                        </SubscriptionFormDialog>
-                    </div>
+                    <EmptyState
+                        illustration="billing-history"
+                        title="No subscriptions yet"
+                        description="Add your first subscription to start building your billing history and track every payment."
+                        action={
+                            <SubscriptionFormDialog>
+                                <Button className="bg-[#00D4AA] hover:bg-[#00D4AA]/90 text-black font-semibold rounded-xl px-6 h-11 shadow-[0_10px_20px_rgba(0,212,170,0.2)] hover:shadow-[0_14px_28px_rgba(0,212,170,0.3)] hover:scale-[1.02] transition-all">
+                                    <CreditCard className="mr-2 h-4 w-4" />
+                                    Add Your First Subscription
+                                </Button>
+                            </SubscriptionFormDialog>
+                        }
+                    />
                 </div>
             </div>
         )
@@ -396,12 +395,12 @@ export default function BillingHistoryPage() {
                 {/* Transaction Table */}
                 <section className="glass-card rounded-[2rem] overflow-hidden">
                     {searchedSubscriptions.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16">
-                            <div className="w-14 h-14 rounded-2xl bg-white/[0.04] flex items-center justify-center mb-4">
-                                <CreditCard className="h-7 w-7 text-white/20" />
-                            </div>
-                            <p className="text-[#bacac2]/60 text-[15px]">No subscriptions found.</p>
-                        </div>
+                        <EmptyState
+                            illustration="billing-history"
+                            title="No transactions found"
+                            description="Try adjusting your search or filter to find what you're looking for."
+                            className="rounded-[2rem]"
+                        />
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">

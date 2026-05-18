@@ -26,11 +26,16 @@ export const csrfProtection = createMiddleware(async (c, next) => {
         }
     }
 
+    // Normalize host for comparison: strip www. prefix so that
+    // www.ezbudget.in and ezbudget.in are treated as the same site.
+    const normalizeHost = (h: string) => h.replace(/^www\./, "")
+    const normalizedHost = host ? normalizeHost(host) : ""
+
     // Validate origin matches host
     if (origin) {
         try {
             const originUrl = new URL(origin)
-            if (originUrl.host === host) {
+            if (normalizeHost(originUrl.host) === normalizedHost) {
                 await next()
                 return
             }
@@ -43,7 +48,7 @@ export const csrfProtection = createMiddleware(async (c, next) => {
     if (referer) {
         try {
             const refererUrl = new URL(referer)
-            if (refererUrl.host === host) {
+            if (normalizeHost(refererUrl.host) === normalizedHost) {
                 await next()
                 return
             }

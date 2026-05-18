@@ -4,6 +4,8 @@ import { useState, useMemo } from "react"
 import { useSubscriptions } from "@/features/subscriptions/api/use-subscriptions"
 import { useMarkAsPaid } from "@/features/subscriptions/api/use-mark-as-paid"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/empty-state"
+import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
 import {
     ChevronLeft,
     ChevronRight,
@@ -13,6 +15,7 @@ import {
     Check,
     Flame,
     X,
+    Plus,
 } from "lucide-react"
 import {
     format,
@@ -122,9 +125,11 @@ function getBillStatus(sub: Subscription, billDate: Date, now: Date): BillStatus
     const today = startOfDay(now)
     const nextDue = startOfDay(parseISO(sub.nextBillingDate))
 
-    // The paymentStatus on the subscription only applies to the current cycle (nextBillingDate).
-    // For any other projected date, we infer status from whether it's past or future.
-    const isCurrentCycle = isSameDay(billDay, nextDue)
+    // nextBillingDate is always the NEXT upcoming date.
+    // The "current due" date is one cycle back from nextBillingDate.
+    // paymentStatus applies to the current due cycle (the most recent one).
+    const currentDue = startOfDay(rewindByCycle(nextDue, sub.billingCycle))
+    const isCurrentCycle = isSameDay(billDay, currentDue)
 
     if (isCurrentCycle) {
         // Current cycle — trust the actual paymentStatus
@@ -135,12 +140,20 @@ function getBillStatus(sub: Subscription, billDate: Date, now: Date): BillStatus
         return "upcoming"
     }
 
-    // Past projected dates (before the current nextBillingDate) were already paid
-    if (billDay < nextDue) {
+    // Future dates (on or after nextBillingDate) are upcoming
+    if (billDay >= nextDue) {
+        return "upcoming"
+    }
+
+    // Past dates before the current due cycle — check if actually paid
+    // using lastPaidDate as the ground truth
+    const lastPaid = sub.lastPaidDate ? startOfDay(parseISO(sub.lastPaidDate)) : null
+    if (lastPaid && billDay <= lastPaid) {
         return "paid"
     }
 
-    // Future projected dates are upcoming
+    // Past date with no evidence of payment
+    if (billDay < today) return "overdue"
     return "upcoming"
 }
 
@@ -170,6 +183,7 @@ export default function BillCalendarPage() {
 
         for (const sub of subscriptions) {
             const nextDue = startOfDay(parseISO(sub.nextBillingDate))
+            const currentDue = startOfDay(rewindByCycle(nextDue, sub.billingCycle))
             const projectedDates = getProjectedDates(sub, calendarRangeStart, calendarRangeEnd)
             for (const billDate of projectedDates) {
                 const key = format(billDate, "yyyy-MM-dd")
@@ -177,7 +191,7 @@ export default function BillCalendarPage() {
                     subscription: sub,
                     status: getBillStatus(sub, billDate, now),
                     date: billDate,
-                    isCurrentCycle: isSameDay(billDate, nextDue),
+                    isCurrentCycle: isSameDay(billDate, currentDue),
                 }
                 if (!map.has(key)) map.set(key, [])
                 map.get(key)!.push(entry)
@@ -247,6 +261,36 @@ export default function BillCalendarPage() {
                         ))}
                     </div>
                     <div className="rounded-2xl bg-white/[0.06] animate-pulse h-[500px]" />
+                </div>
+            </div>
+        )
+    }
+
+    if (subscriptions.length === 0) {
+        return (
+            <div className="h-full p-4 md:p-8 overflow-auto">
+                <div className="max-w-6xl mx-auto space-y-8">
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold font-[family-name:var(--font-plus-jakarta)] tracking-tight">
+                            Bill Calendar
+                        </h1>
+                        <p className="text-muted-foreground mt-1 text-sm sm:text-[15px]">
+                            Visualize when money leaves your account and plan your cash flow.
+                        </p>
+                    </div>
+                    <EmptyState
+                        illustration="bill-calendar"
+                        title="No subscriptions to display"
+                        description="Add your first subscription to see your bills mapped out on the calendar."
+                        action={
+                            <SubscriptionFormDialog>
+                                <Button className="bg-[#00D4AA] hover:bg-[#00D4AA]/90 text-black font-semibold rounded-xl px-6 h-11 shadow-[0_10px_20px_rgba(0,212,170,0.2)] hover:shadow-[0_14px_28px_rgba(0,212,170,0.3)] hover:scale-[1.02] transition-all">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add Your First Subscription
+                                </Button>
+                            </SubscriptionFormDialog>
+                        }
+                    />
                 </div>
             </div>
         )

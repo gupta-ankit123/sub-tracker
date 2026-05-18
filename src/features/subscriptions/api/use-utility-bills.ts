@@ -151,6 +151,7 @@ export const useMarkBillRecordPaid = () => {
             toast.success("Bill marked as paid")
             queryClient.invalidateQueries({ queryKey: ["utility-bills"] })
             queryClient.invalidateQueries({ queryKey: ["bill-history"] })
+            queryClient.invalidateQueries({ queryKey: ["subscriptions"] })
         },
         onError: (error) => {
             toast.error(error.message || "Failed to mark as paid")
@@ -175,6 +176,8 @@ export const useMarkUtilityBillPaid = () => {
         onSuccess: () => {
             toast.success("Bill marked as paid")
             queryClient.invalidateQueries({ queryKey: ["utility-bills"] })
+            queryClient.invalidateQueries({ queryKey: ["bill-history"] })
+            queryClient.invalidateQueries({ queryKey: ["subscriptions"] })
         },
         onError: (error) => {
             toast.error(error.message || "Failed to mark as paid")

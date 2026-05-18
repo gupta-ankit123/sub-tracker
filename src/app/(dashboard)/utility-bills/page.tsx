@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Plus, Zap, Droplets, Flame, Wifi, Smartphone, Building, Loader2, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
+import { EmptyState } from "@/components/empty-state"
 
 interface UtilityBill {
     id: string
@@ -278,20 +279,19 @@ export default function UtilityBillsPage() {
 
                 {/* Bill Cards Grid */}
                 {utilityBills.length === 0 ? (
-                    <div className="glass-card rounded-[2rem] flex flex-col items-center justify-center py-16 px-6">
-                        <div className="h-16 w-16 rounded-full bg-[#00D4AA]/10 flex items-center justify-center mb-5">
-                            <Zap className="h-8 w-8 text-[#00D4AA]" />
-                        </div>
-                        <h3 className="text-lg font-semibold font-[family-name:var(--font-plus-jakarta)] mb-2">No Utility Bills Yet</h3>
-                        <p className="text-muted-foreground text-center mb-6 max-w-sm text-sm">
-                            Start tracking your electricity, water, gas and other utility bills
-                        </p>
-                        <UtilityBillFormDialog onSuccess={() => queryClient.invalidateQueries({ queryKey: ["utility-bills"] })}>
-                            <Button className="bg-[#00D4AA] hover:bg-[#00D4AA]/90 text-black font-semibold rounded-xl px-5">
-                                Add Your First Utility Bill
-                            </Button>
-                        </UtilityBillFormDialog>
-                    </div>
+                    <EmptyState
+                        illustration="utility-bills"
+                        title="No Utility Bills Yet"
+                        description="Start tracking your electricity, water, gas and other utility bills to stay on top of monthly expenses."
+                        action={
+                            <UtilityBillFormDialog onSuccess={() => queryClient.invalidateQueries({ queryKey: ["utility-bills"] })}>
+                                <Button className="bg-[#00D4AA] hover:bg-[#00D4AA]/90 text-black font-semibold rounded-xl px-6 h-11 shadow-[0_10px_20px_rgba(0,212,170,0.2)] hover:shadow-[0_14px_28px_rgba(0,212,170,0.3)] hover:scale-[1.02] transition-all">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add Your First Utility Bill
+                                </Button>
+                            </UtilityBillFormDialog>
+                        }
+                    />
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                         {utilityBills.map((bill) => {
