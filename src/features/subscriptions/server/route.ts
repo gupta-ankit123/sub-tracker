@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator"
 import { prisma } from "@/lib/db";
 import { sessionMiddleware } from "@/lib/sessionMiddleware";
-import { createSubscriptionSchema, updateSubscriptionSchema, subscriptionIdSchema, createUtilityBillSchema, recordBillSchema, createEstimateSchema, createBillingHistorySchema, updateBillingHistoryStatusSchema, updateUsageFrequencySchema } from "../schemas";
+import { createSubscriptionSchema, updateSubscriptionSchema, subscriptionIdSchema, createUtilityBillSchema, recordBillSchema, createEstimateSchema, createBillingHistorySchema, updateBillingHistoryStatusSchema, updateUsageFrequencySchema, bulkIdsSchema, bulkCategoryChangeSchema } from "../schemas";
 import { BillingCycle } from "@/app/generated/prisma/client";
 import { sanitizeString } from "@/lib/sanitize";
 
@@ -38,6 +38,54 @@ const app = new Hono()
             orderBy: { nextBillingDate: "asc" }
         });
         return c.json({ data: subscriptions });
+    })
+    .post("/bulk/mark-paid", sessionMiddleware, zValidator("json", bulkIdsSchema), async (c) => {
+        const user = c.get("user");
+        const { ids } = c.req.valid("json");
+
+        const subscriptions = await prisma.subscription.findMany({
+            where: { id: { in: ids }, userId: user.id }
+        });
+
+        if (subscriptions.length === 0) {
+            return c.json({ error: "No matching subscriptions found" }, 404);
+        }
+
+        const now = new Date();
+        const updates = subscriptions.map(sub =>
+            prisma.subscription.update({
+                where: { id: sub.id },
+                data: {
+                    lastPaidDate: now,
+                    paymentStatus: "SUCCESS",
+                    nextBillingDate: calculateNextBillingDate(sub.billingCycle, now)
+                }
+            })
+        );
+
+        await Promise.all(updates);
+        return c.json({ data: { success: true, count: subscriptions.length } });
+    })
+    .post("/bulk/delete", sessionMiddleware, zValidator("json", bulkIdsSchema), async (c) => {
+        const user = c.get("user");
+        const { ids } = c.req.valid("json");
+
+        const result = await prisma.subscription.deleteMany({
+            where: { id: { in: ids }, userId: user.id }
+        });
+
+        return c.json({ data: { success: true, count: result.count } });
+    })
+    .patch("/bulk/category", sessionMiddleware, zValidator("json", bulkCategoryChangeSchema), async (c) => {
+        const user = c.get("user");
+        const { ids, category } = c.req.valid("json");
+
+        const result = await prisma.subscription.updateMany({
+            where: { id: { in: ids }, userId: user.id },
+            data: { category: sanitizeString(category) }
+        });
+
+        return c.json({ data: { success: true, count: result.count } });
     })
     .post("/utility-bills", sessionMiddleware, zValidator("json", createUtilityBillSchema), async (c) => {
         const user = c.get("user");
@@ -299,10 +347,21 @@ const app = new Hono()
             return c.json({ error: "No bill record found for current month. Please record the bill first." }, 404);
         }
 
-        await prisma.billRecord.update({
-            where: { id: record.id },
-            data: { paidDate: new Date(), paymentStatus: "SUCCESS" }
-        });
+        const now = new Date();
+        await Promise.all([
+            prisma.billRecord.update({
+                where: { id: record.id },
+                data: { paidDate: now, paymentStatus: "SUCCESS" }
+            }),
+            prisma.subscription.update({
+                where: { id },
+                data: {
+                    paymentStatus: "SUCCESS",
+                    lastPaidDate: now,
+                    nextBillingDate: calculateNextBillingDate(subscription.billingCycle, now)
+                }
+            })
+        ]);
 
         return c.json({ data: { success: true } });
     })
@@ -312,17 +371,42 @@ const app = new Hono()
 
         const record = await prisma.billRecord.findFirst({
             where: { id },
-            include: { subscription: { select: { userId: true } } }
+            include: { subscription: true }
         });
 
         if (!record || record.subscription.userId !== user.id) {
             return c.json({ error: "Bill record not found" }, 404);
         }
 
-        const updated = await prisma.billRecord.update({
-            where: { id },
-            data: { paidDate: new Date(), paymentStatus: "SUCCESS" }
-        });
+        const now = new Date();
+        const sub = record.subscription;
+
+        // Determine if this record's billing month is the current/latest cycle
+        const currentNextBilling = sub.nextBillingDate;
+        const recordMonth = record.billingMonth;
+        const isCurrentOrLatestCycle = recordMonth >= currentNextBilling ||
+            (recordMonth.getMonth() === now.getMonth() && recordMonth.getFullYear() === now.getFullYear());
+
+        // Build subscription update: always set lastPaidDate if newer
+        const subUpdateData: Record<string, unknown> = {};
+        if (!sub.lastPaidDate || now > sub.lastPaidDate) {
+            subUpdateData.lastPaidDate = now;
+        }
+        // Only advance nextBillingDate and set paymentStatus for current/latest cycle
+        if (isCurrentOrLatestCycle) {
+            subUpdateData.paymentStatus = "SUCCESS";
+            subUpdateData.nextBillingDate = calculateNextBillingDate(sub.billingCycle, now);
+        }
+
+        const [updated] = await Promise.all([
+            prisma.billRecord.update({
+                where: { id },
+                data: { paidDate: now, paymentStatus: "SUCCESS" }
+            }),
+            ...(Object.keys(subUpdateData).length > 0
+                ? [prisma.subscription.update({ where: { id: record.subscriptionId }, data: subUpdateData })]
+                : [])
+        ]);
 
         return c.json({ data: updated });
     })

@@ -8,6 +8,7 @@ import { SafeToSpendCard } from "./safe-to-spend-card"
 import { BudgetFormDialog } from "./budget-form-dialog"
 import { BudgetCategoryCard } from "./budget-category-card"
 import { CarryForwardDialog } from "./carry-forward-dialog"
+import { EmptyState } from "@/components/empty-state"
 
 function getMonthString(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`
@@ -103,19 +104,19 @@ export function BudgetPageContent() {
                     ))}
                 </div>
             ) : budgets.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 px-6 rounded-2xl bg-[rgba(23,27,39,0.8)] border border-white/[0.05] backdrop-blur-sm">
-                    <div className="w-14 h-14 rounded-2xl bg-[#00D4AA]/10 flex items-center justify-center mb-4">
-                        <Wallet className="h-7 w-7 text-[#00D4AA]" />
-                    </div>
-                    <p className="text-[#bacac2] mb-1 text-sm font-medium">No budgets for this month yet.</p>
-                    <p className="text-[#bacac2]/60 text-xs mb-5">Create a budget to start tracking your spending.</p>
-                    <BudgetFormDialog month={month}>
-                        <Button className="gap-1.5 rounded-xl bg-[#00D4AA] text-[#005643] font-bold shadow-[0_10px_20px_rgba(0,212,170,0.2)] hover:scale-95 transition-all">
-                            <Plus className="h-4 w-4" />
-                            Create Your First Budget
-                        </Button>
-                    </BudgetFormDialog>
-                </div>
+                <EmptyState
+                    illustration="budgets"
+                    title="No budgets for this month"
+                    description="Create a budget to start tracking your spending and keep your finances on track."
+                    action={
+                        <BudgetFormDialog month={month}>
+                            <Button className="gap-1.5 rounded-xl bg-[#00D4AA] text-[#005643] font-bold shadow-[0_10px_20px_rgba(0,212,170,0.2)] hover:shadow-[0_14px_28px_rgba(0,212,170,0.3)] hover:scale-[1.02] transition-all h-11 px-6">
+                                <Plus className="h-4 w-4" />
+                                Create Your First Budget
+                            </Button>
+                        </BudgetFormDialog>
+                    }
+                />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {budgets.map((budget) => (

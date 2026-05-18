@@ -2,6 +2,7 @@
 
 import { UserButton } from "@/features/auth/components/user-button"
 import { MobileSidebar } from "./mobile-sidebar"
+import { CommandPalette } from "./command-palette"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -44,16 +45,7 @@ export const Navbar = () => {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="hidden sm:flex items-center bg-[#0a0e19] rounded-full px-4 py-1.5 border border-white/[0.04]">
-                        <svg className="w-4 h-4 text-white/40 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            className="bg-transparent border-none text-sm text-white/80 placeholder:text-white/30 focus:ring-0 focus:outline-none w-32 p-0"
-                        />
-                    </div>
+                    <CommandPalette />
                     <button className="p-2 text-slate-400 hover:bg-[#00D4AA]/10 hover:text-[#00D4AA] rounded-full transition-all">
                         <Bell className="w-5 h-5" />
                     </button>

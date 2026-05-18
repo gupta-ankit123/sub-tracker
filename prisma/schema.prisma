@@ -29,6 +29,8 @@ model User {
 
   monthlyIncome Decimal? @map("monthly_income") @db.Decimal(12, 2)
 
+  onboardingCompleted Boolean @default(false) @map("onboarding_completed")
+
   emailNotifications Boolean   @default(true) @map("email_notifications")
   pushNotifications  Boolean   @default(true) @map("push_notifications")
   emailVerified      Boolean   @default(false) @map("email_verified")

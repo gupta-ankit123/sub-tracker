@@ -29,12 +29,12 @@ const app = new Hono()
                 error: "Invalid credentials"
             }, 401)
         }
-        if (!user.emailVerified) {
-            return c.json(
-                { error: "Please verify your email first" },
-                403
-            );
-        }
+        // if (!user.emailVerified) {
+        //     return c.json(
+        //         { error: "Please verify your email first" },
+        //         403
+        //     );
+        // }
 
         const validPassword = await bcrypt.compare(password, user.password)
         if (!validPassword) {
@@ -331,6 +331,16 @@ const app = new Hono()
             console.error("Reset password error:", error);
             return c.json({ error: "Something went wrong" }, 500);
         }
+    })
+    .patch("/complete-onboarding", sessionMiddleware, async (c) => {
+        const user = c.get("user");
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { onboardingCompleted: true },
+        });
+
+        return c.json({ message: "Onboarding completed" });
     })
     .delete("/account", sessionMiddleware, async (c) => {
         const user = c.get("user");

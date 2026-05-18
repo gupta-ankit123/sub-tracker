@@ -9,8 +9,12 @@ import { useDeleteSubscription } from "../api/use-delete-subscription"
 import { useMarkAsPaid } from "../api/use-mark-as-paid"
 import { useSkipPayment } from "../api/use-skip-payment"
 import { useMarkAsUsed } from "../api/use-mark-as-used"
+import { useUpdateSubscription } from "../api/use-update-subscription"
+import { useBulkMarkAsPaid, useBulkDelete, useBulkCategoryChange } from "../api/use-bulk-actions"
+import { SUBSCRIPTION_CATEGORIES } from "../schemas"
+import { InlineEditable } from "@/components/inline-editable"
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO, format, isBefore, addDays, addMonths, subMonths } from "date-fns"
-import { Check, SkipForward, AlertCircle, CheckCircle, Clock, Zap, Search, MoreHorizontal, CalendarDays } from "lucide-react"
+import { Check, SkipForward, AlertCircle, CheckCircle, Clock, Zap, Search, MoreHorizontal, CalendarDays, X, Tag, CheckSquare } from "lucide-react"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -19,6 +23,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useState, useMemo } from "react"
+import { EmptyState } from "@/components/empty-state"
 
 interface Subscription {
     id: string
@@ -269,6 +274,14 @@ export function SubscriptionList() {
     const markAsPaidMutation = useMarkAsPaid()
     const skipPaymentMutation = useSkipPayment()
     const markAsUsedMutation = useMarkAsUsed()
+    const updateMutation = useUpdateSubscription()
+
+    const bulkMarkAsPaidMutation = useBulkMarkAsPaid()
+    const bulkDeleteMutation = useBulkDelete()
+    const bulkCategoryChangeMutation = useBulkCategoryChange()
+
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+    const [showCategoryPicker, setShowCategoryPicker] = useState(false)
 
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL")
@@ -286,6 +299,47 @@ export function SubscriptionList() {
         if (confirm("Are you sure you want to delete this subscription?")) {
             deleteMutation.mutate({ param: { id } })
         }
+    }
+
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
+    const selectAll = () => {
+        if (selectedIds.size === filteredSubscriptions.length) {
+            setSelectedIds(new Set())
+        } else {
+            setSelectedIds(new Set(filteredSubscriptions.map(s => s.id)))
+        }
+    }
+
+    const clearSelection = () => {
+        setSelectedIds(new Set())
+        setShowCategoryPicker(false)
+    }
+
+    const handleBulkMarkPaid = () => {
+        const ids = Array.from(selectedIds)
+        bulkMarkAsPaidMutation.mutate(ids, { onSuccess: clearSelection })
+    }
+
+    const handleBulkDelete = () => {
+        const count = selectedIds.size
+        if (confirm(`Are you sure you want to delete ${count} subscription${count > 1 ? "s" : ""}? This cannot be undone.`)) {
+            bulkDeleteMutation.mutate(Array.from(selectedIds), { onSuccess: clearSelection })
+        }
+    }
+
+    const handleBulkCategoryChange = (category: string) => {
+        bulkCategoryChangeMutation.mutate(
+            { ids: Array.from(selectedIds), category },
+            { onSuccess: () => { clearSelection() } }
+        )
     }
 
     if (isLoading) {
@@ -378,11 +432,15 @@ export function SubscriptionList() {
 
     const overdueBills = projectedUpcomingSubs.filter(sub => {
         if (sub.paymentStatus === "SUCCESS" || sub.paymentStatus === "SKIPPED") return false
-        const lastPaid = sub.lastPaidDate ? parseISO(sub.lastPaidDate) : null
-        const paidThisMonth = lastPaid
-            && lastPaid.getFullYear() === monthStart.getFullYear()
-            && lastPaid.getMonth() === monthStart.getMonth()
-        if (paidThisMonth) return false
+        const nextDue = parseISO(sub.nextBillingDate)
+        const currentDue = rewindByCycle(nextDue, sub.billingCycle)
+        const isCurrentCycle = Math.abs(sub.projectedDate.getTime() - currentDue.getTime()) < 86400000
+        // Current cycle already checked via paymentStatus above
+        // Past cycles: check if lastPaidDate covers this billing date
+        if (!isCurrentCycle) {
+            const lastPaid = sub.lastPaidDate ? parseISO(sub.lastPaidDate) : null
+            if (lastPaid && sub.projectedDate <= lastPaid) return false
+        }
         return isBefore(sub.projectedDate, now)
     })
 
@@ -429,17 +487,32 @@ export function SubscriptionList() {
             const projectedDate = getProjectedDateInMonth(sub.nextBillingDate, sub.billingCycle, monthStart, monthEnd)
             if (!projectedDate) return null
 
-            const lastPaid = sub.lastPaidDate ? parseISO(sub.lastPaidDate) : null
-            const paidThisMonth = lastPaid
-                && lastPaid.getFullYear() === monthStart.getFullYear()
-                && lastPaid.getMonth() === monthStart.getMonth()
+            const nextDue = parseISO(sub.nextBillingDate)
+            const currentDue = rewindByCycle(nextDue, sub.billingCycle)
+            const isCurrentCycle = Math.abs(projectedDate.getTime() - currentDue.getTime()) < 86400000 // within 1 day
 
             let effectiveStatus: string
-            if (paidThisMonth) {
-                effectiveStatus = "SUCCESS"
-            } else if (isBefore(projectedDate, now)) {
-                effectiveStatus = "OVERDUE"
+            if (isCurrentCycle) {
+                // Current billing cycle — trust paymentStatus
+                if (sub.paymentStatus === "SUCCESS" || sub.paymentStatus === "SKIPPED") {
+                    effectiveStatus = "SUCCESS"
+                } else if (isBefore(projectedDate, now)) {
+                    effectiveStatus = "OVERDUE"
+                } else {
+                    effectiveStatus = "PENDING"
+                }
+            } else if (isBefore(projectedDate, currentDue)) {
+                // Past cycle — check if lastPaidDate covers it
+                const lastPaid = sub.lastPaidDate ? parseISO(sub.lastPaidDate) : null
+                if (lastPaid && projectedDate <= lastPaid) {
+                    effectiveStatus = "SUCCESS"
+                } else if (isBefore(projectedDate, now)) {
+                    effectiveStatus = "OVERDUE"
+                } else {
+                    effectiveStatus = "PENDING"
+                }
             } else {
+                // Future cycle
                 effectiveStatus = "PENDING"
             }
 
@@ -538,19 +611,19 @@ export function SubscriptionList() {
 
     if (subscriptions.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center p-16 glass-card rounded-2xl">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#00D4AA]/20 to-[#3B82F6]/20 flex items-center justify-center mb-6">
-                    <Wallet className="h-8 w-8 text-[#00D4AA]" />
-                </div>
-                <h3 className="text-lg font-semibold font-[family-name:var(--font-plus-jakarta)] mb-2">No subscriptions yet</h3>
-                <p className="text-[#7A8BA8] text-center mb-8 max-w-sm">Start tracking your subscriptions by adding your first one. We will help you stay on top of your spending.</p>
-                <SubscriptionFormDialog>
-                    <Button className="bg-[#00D4AA] hover:bg-[#00D4AA]/90 text-black font-medium rounded-xl px-6">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Subscription
-                    </Button>
-                </SubscriptionFormDialog>
-            </div>
+            <EmptyState
+                illustration="subscriptions"
+                title="No subscriptions yet"
+                description="Start tracking your subscriptions by adding your first one. We'll help you stay on top of your spending."
+                action={
+                    <SubscriptionFormDialog>
+                        <Button className="bg-[#00D4AA] hover:bg-[#00D4AA]/90 text-black font-semibold rounded-xl px-6 h-11 shadow-[0_10px_20px_rgba(0,212,170,0.2)] hover:shadow-[0_14px_28px_rgba(0,212,170,0.3)] hover:scale-[1.02] transition-all">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Your First Subscription
+                        </Button>
+                    </SubscriptionFormDialog>
+                }
+            />
         )
     }
 
@@ -868,11 +941,11 @@ export function SubscriptionList() {
                     )}
 
                     {overdueBills.length === 0 && dueThisWeekBills.length === 0 && laterThisMonthBills.length === 0 && (
-                        <div className="flex flex-col items-center justify-center py-20 glass-card rounded-3xl">
-                            <Calendar className="h-12 w-12 text-[#7A8BA8]/40 mb-4" />
-                            <h3 className="text-lg font-semibold font-[family-name:var(--font-plus-jakarta)] text-white mb-2">No upcoming bills</h3>
-                            <p className="text-[#7A8BA8] text-sm">All caught up! No bills due this month.</p>
-                        </div>
+                        <EmptyState
+                            illustration="upcoming"
+                            title="No upcoming bills"
+                            description="All caught up! No bills due this month. Enjoy the breather."
+                        />
                     )}
                 </div>
             )}
@@ -967,10 +1040,12 @@ export function SubscriptionList() {
                     {/* Transaction Table */}
                     <section className="glass-card rounded-2xl overflow-hidden">
                         {historySearchedSubs.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-16">
-                                <CreditCard className="h-12 w-12 text-[#7A8BA8]/40 mb-4" />
-                                <p className="text-[#7A8BA8] text-sm">No subscriptions found.</p>
-                            </div>
+                            <EmptyState
+                                illustration="billing-history"
+                                title="No transactions found"
+                                description="Try adjusting your search or filters to find what you're looking for."
+                                className="rounded-2xl"
+                            />
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
@@ -1059,21 +1134,124 @@ export function SubscriptionList() {
             {/* ========== SUBSCRIPTION CARD GRID (default views) ========== */}
             {statusFilter !== "UPCOMING" && statusFilter !== "HISTORY" && (
                 <>
-                    {filteredSubscriptions.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 glass-card rounded-3xl">
-                            <Search className="h-12 w-12 text-[#7A8BA8]/40 mb-4" />
-                            <h3 className="text-lg font-semibold font-[family-name:var(--font-plus-jakarta)] text-white mb-2">No subscriptions found</h3>
-                            <p className="text-[#7A8BA8] text-sm">Try adjusting your search or filters.</p>
+                    {/* Bulk Select Bar */}
+                    {filteredSubscriptions.length > 0 && (
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={selectAll}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all bg-[#1b1f2b] hover:bg-white/[0.08] text-[#7A8BA8] hover:text-white"
+                            >
+                                <div className={`w-4.5 h-4.5 rounded border-2 flex items-center justify-center transition-all ${
+                                    selectedIds.size > 0 && selectedIds.size === filteredSubscriptions.length
+                                        ? "bg-[#00D4AA] border-[#00D4AA]"
+                                        : selectedIds.size > 0
+                                        ? "bg-[#00D4AA]/40 border-[#00D4AA]"
+                                        : "border-[#7A8BA8]/40"
+                                }`}>
+                                    {selectedIds.size > 0 && <Check className="h-3 w-3 text-black" />}
+                                </div>
+                                {selectedIds.size === 0 ? "Select All" : `${selectedIds.size} selected`}
+                            </button>
+                            {selectedIds.size > 0 && (
+                                <button
+                                    onClick={clearSelection}
+                                    className="text-xs text-[#7A8BA8] hover:text-white transition-colors"
+                                >
+                                    Clear
+                                </button>
+                            )}
                         </div>
+                    )}
+
+                    {/* Floating Bulk Action Bar */}
+                    {selectedIds.size > 0 && (
+                        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-200">
+                            <div className="flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-[#1b1f2b]/95 backdrop-blur-xl border border-white/[0.08] shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+                                <span className="text-sm font-bold text-white mr-2">
+                                    {selectedIds.size} selected
+                                </span>
+                                <div className="w-px h-6 bg-white/10" />
+                                <button
+                                    onClick={handleBulkMarkPaid}
+                                    disabled={bulkMarkAsPaidMutation.isPending}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#00D4AA] text-[#00382b] hover:shadow-[0_0_20px_rgba(0,212,170,0.3)] transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    <CheckSquare className="h-3.5 w-3.5" />
+                                    Mark Paid
+                                </button>
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowCategoryPicker(!showCategoryPicker)}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#3B82F6]/20 text-[#3B82F6] hover:bg-[#3B82F6]/30 transition-all active:scale-95"
+                                    >
+                                        <Tag className="h-3.5 w-3.5" />
+                                        Change Category
+                                    </button>
+                                    {showCategoryPicker && (
+                                        <div className="absolute bottom-full mb-2 left-0 w-56 max-h-64 overflow-y-auto rounded-xl bg-[#1b1f2b] border border-white/[0.08] shadow-2xl py-1">
+                                            {SUBSCRIPTION_CATEGORIES.map((cat) => (
+                                                <button
+                                                    key={cat}
+                                                    onClick={() => handleBulkCategoryChange(cat)}
+                                                    disabled={bulkCategoryChangeMutation.isPending}
+                                                    className="w-full text-left px-4 py-2.5 text-sm text-[#7A8BA8] hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-50"
+                                                >
+                                                    {cat}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={handleBulkDelete}
+                                    disabled={bulkDeleteMutation.isPending}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#EF4444]/20 text-[#EF4444] hover:bg-[#EF4444]/30 transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    Delete
+                                </button>
+                                <div className="w-px h-6 bg-white/10" />
+                                <button
+                                    onClick={clearSelection}
+                                    className="p-1.5 rounded-lg text-[#7A8BA8] hover:text-white hover:bg-white/[0.06] transition-colors"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {filteredSubscriptions.length === 0 ? (
+                        <EmptyState
+                            illustration="subscriptions"
+                            title="No subscriptions found"
+                            description="Try adjusting your search or filters to find what you're looking for."
+                            className="rounded-3xl"
+                        />
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredSubscriptions.map((subscription, idx) => {
                                 const colors = getLogoColors(idx)
+                                const isSelected = selectedIds.has(subscription.id)
                                 return (
                                     <div
                                         key={subscription.id}
-                                        className="glass-card rounded-3xl p-6 relative group transition-all duration-300 hover:-translate-y-2 overflow-hidden"
+                                        className={`glass-card rounded-3xl p-6 relative group transition-all duration-300 hover:-translate-y-2 overflow-hidden ${
+                                            isSelected ? "ring-2 ring-[#00D4AA] ring-offset-0 bg-[#00D4AA]/[0.03]" : ""
+                                        }`}
                                     >
+                                        {/* Selection checkbox */}
+                                        <button
+                                            onClick={() => toggleSelect(subscription.id)}
+                                            className={`absolute top-4 left-4 z-10 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                                                isSelected
+                                                    ? "bg-[#00D4AA] border-[#00D4AA]"
+                                                    : "border-[#7A8BA8]/30 opacity-0 group-hover:opacity-100"
+                                            }`}
+                                        >
+                                            {isSelected && <Check className="h-3 w-3 text-black" />}
+                                        </button>
+
                                         {/* Colored orb blur in top-right */}
                                         <div
                                             className="absolute top-0 right-0 w-32 h-32 opacity-[0.06] blur-3xl rounded-full pointer-events-none"
@@ -1100,18 +1278,44 @@ export function SubscriptionList() {
 
                                         {/* Name + Category */}
                                         <div className="mb-6">
-                                            <h3 className="text-xl font-bold font-[family-name:var(--font-plus-jakarta)] text-white">
-                                                {subscription.name}
-                                            </h3>
+                                            <InlineEditable
+                                                value={subscription.name}
+                                                onSave={(name) => updateMutation.mutate({
+                                                    param: { id: subscription.id },
+                                                    json: { name }
+                                                })}
+                                                isPending={updateMutation.isPending}
+                                                renderValue={() => (
+                                                    <h3 className="text-xl font-bold font-[family-name:var(--font-plus-jakarta)] text-white">
+                                                        {subscription.name}
+                                                    </h3>
+                                                )}
+                                                inputClassName="text-xl font-bold font-[family-name:var(--font-plus-jakarta)] max-w-[200px]"
+                                            />
                                             <p className="text-[#7A8BA8] text-sm mt-0.5">{subscription.category}</p>
                                         </div>
 
                                         {/* Price */}
                                         <div className="flex items-baseline gap-1 mb-6">
-                                            <span className="text-3xl font-black text-white tracking-tighter font-[family-name:var(--font-plus-jakarta)]">
-                                                {subscription.currency === "INR" ? "\u20B9" : subscription.currency}{" "}
-                                                {Number(subscription.amount).toFixed(2)}
-                                            </span>
+                                            <InlineEditable
+                                                value={Number(subscription.amount).toFixed(2)}
+                                                type="number"
+                                                min={0.01}
+                                                step="0.01"
+                                                onSave={(amount) => updateMutation.mutate({
+                                                    param: { id: subscription.id },
+                                                    json: { amount: parseFloat(amount) }
+                                                })}
+                                                isPending={updateMutation.isPending}
+                                                validate={(v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0}
+                                                renderValue={() => (
+                                                    <span className="text-3xl font-black text-white tracking-tighter font-[family-name:var(--font-plus-jakarta)]">
+                                                        {subscription.currency === "INR" ? "\u20B9" : subscription.currency}{" "}
+                                                        {Number(subscription.amount).toFixed(2)}
+                                                    </span>
+                                                )}
+                                                inputClassName="text-2xl font-black tracking-tighter font-[family-name:var(--font-plus-jakarta)] w-32"
+                                            />
                                             <span className="text-[#7A8BA8] text-sm">{getBillingCycleLabel(subscription.billingCycle)}</span>
                                         </div>
 
@@ -1119,14 +1323,27 @@ export function SubscriptionList() {
                                         <div className="flex items-center justify-between pt-6 border-t border-white/[0.05]">
                                             <div className="flex items-center gap-2">
                                                 <CalendarDays className="h-3.5 w-3.5 text-[#7A8BA8]" />
-                                                <span className="text-xs text-[#7A8BA8]">
-                                                    {subscription.status === "CANCELLED"
-                                                        ? `Cancelled`
-                                                        : subscription.status === "PAUSED"
-                                                            ? `Paused`
-                                                            : `Next: ${format(new Date(subscription.nextBillingDate), "MMM dd")}`
-                                                    }
-                                                </span>
+                                                {subscription.status === "CANCELLED" ? (
+                                                    <span className="text-xs text-[#7A8BA8]">Cancelled</span>
+                                                ) : subscription.status === "PAUSED" ? (
+                                                    <span className="text-xs text-[#7A8BA8]">Paused</span>
+                                                ) : (
+                                                    <InlineEditable
+                                                        value={format(new Date(subscription.nextBillingDate), "yyyy-MM-dd")}
+                                                        type="date"
+                                                        onSave={(date) => updateMutation.mutate({
+                                                            param: { id: subscription.id },
+                                                            json: { firstBillingDate: date }
+                                                        })}
+                                                        isPending={updateMutation.isPending}
+                                                        renderValue={() => (
+                                                            <span className="text-xs text-[#7A8BA8]">
+                                                                Next: {format(new Date(subscription.nextBillingDate), "MMM dd")}
+                                                            </span>
+                                                        )}
+                                                        inputClassName="text-xs"
+                                                    />
+                                                )}
                                             </div>
 
                                             {/* Actions dropdown */}

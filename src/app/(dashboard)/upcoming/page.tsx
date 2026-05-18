@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { SubscriptionFormDialog } from "@/features/subscriptions/components/subscription-form-dialog"
 import { Plus, Calendar, Clock, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO, isWithinInterval, isBefore, addDays, format, addMonths, subMonths } from "date-fns"
+import { EmptyState } from "@/components/empty-state"
 
 function advanceByCycle(date: Date, cycle: string): Date {
     switch (cycle) {
@@ -164,21 +165,19 @@ export default function UpcomingPage() {
                         <h1 className="text-3xl font-bold font-[family-name:var(--font-plus-jakarta)] tracking-tight">Upcoming Bills</h1>
                         <p className="text-muted-foreground mt-2 text-[15px]">Track your upcoming payments and never miss a due date.</p>
                     </div>
-                    <div className="flex flex-col items-center justify-center py-20 px-8 glass-card rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm">
-                        <div className="w-16 h-16 rounded-2xl bg-white/[0.06] flex items-center justify-center mb-6">
-                            <Calendar className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                        <div className="text-center mb-8">
-                            <h3 className="text-xl font-semibold font-[family-name:var(--font-plus-jakarta)]">No subscriptions yet</h3>
-                            <p className="text-muted-foreground mt-2 max-w-sm">Add your first subscription to start tracking upcoming bills and payments.</p>
-                        </div>
-                        <SubscriptionFormDialog>
-                            <Button className="rounded-xl px-6 h-11">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Add Subscription
-                            </Button>
-                        </SubscriptionFormDialog>
-                    </div>
+                    <EmptyState
+                        illustration="upcoming"
+                        title="No subscriptions yet"
+                        description="Add your first subscription to start tracking upcoming bills and never miss a payment."
+                        action={
+                            <SubscriptionFormDialog>
+                                <Button className="bg-[#00D4AA] hover:bg-[#00D4AA]/90 text-black font-semibold rounded-xl px-6 h-11 shadow-[0_10px_20px_rgba(0,212,170,0.2)] hover:shadow-[0_14px_28px_rgba(0,212,170,0.3)] hover:scale-[1.02] transition-all">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add Your First Subscription
+                                </Button>
+                            </SubscriptionFormDialog>
+                        }
+                    />
                 </div>
             </div>
         )

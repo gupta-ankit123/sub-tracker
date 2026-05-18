@@ -12,6 +12,7 @@ import { useBudgets } from "@/features/budgets/api/use-budgets"
 import { useBudgetAnalytics } from "@/features/budgets/api/use-budget-analytics"
 import { IncomeDialog } from "@/features/budgets/components/income-dialog"
 import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/empty-state"
 
 interface Subscription {
     id: string
@@ -453,19 +454,20 @@ export function DashboardContent({ userName }: { userName: string }) {
                         <p className="text-[#bacac2] font-medium">Welcome back, {userName}. Start tracking your subscriptions.</p>
                     </div>
                 </div>
-                <div className="glass-card rounded-xl p-12 flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 rounded-2xl bg-[#00D4AA]/10 flex items-center justify-center mb-5">
-                        <Sparkles className="h-8 w-8 text-[#46f1c5]" />
-                    </div>
-                    <h3 className="text-lg font-bold mb-2 text-[#dfe2f2] font-[family-name:var(--font-plus-jakarta)]">Welcome to Subscription Tracker!</h3>
-                    <p className="text-[#bacac2] text-center mb-6">Add your first subscription to start tracking your spending.</p>
-                    <SubscriptionFormDialog>
-                        <button className="px-6 py-3 bg-[#00D4AA] text-[#005643] font-bold rounded-xl flex items-center gap-2 hover:shadow-[0_10px_30px_rgba(0,212,170,0.3)] hover:scale-[1.02] transition-all active:scale-95">
-                            <Plus className="h-5 w-5" />
-                            Add Your First Subscription
-                        </button>
-                    </SubscriptionFormDialog>
-                </div>
+                <EmptyState
+                    illustration="dashboard"
+                    title="Welcome to Subscription Tracker!"
+                    description="Add your first subscription or utility bill to unlock your personalized spending dashboard."
+                    action={
+                        <SubscriptionFormDialog>
+                            <button className="px-6 py-3 bg-[#00D4AA] text-[#005643] font-bold rounded-xl flex items-center gap-2 shadow-[0_10px_20px_rgba(0,212,170,0.2)] hover:shadow-[0_14px_28px_rgba(0,212,170,0.3)] hover:scale-[1.02] transition-all active:scale-95">
+                                <Plus className="h-5 w-5" />
+                                Add Your First Subscription
+                            </button>
+                        </SubscriptionFormDialog>
+                    }
+                    className="rounded-xl"
+                />
             </div>
         )
     }

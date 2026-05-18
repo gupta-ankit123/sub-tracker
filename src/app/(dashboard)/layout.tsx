@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getCurrent } from "@/features/auth/action";
 import { Navbar } from "@/components/navbar";
 import { Sidebar } from "@/components/sidebar";
+import { QuickAddFab } from "@/components/quick-add-fab";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -24,11 +26,13 @@ const DashboardLayout = async ({ children }: DashboardLayoutProps) => {
                 {/* Main content */}
                 <div className="lg:pl-[260px] w-full">
                     <Navbar />
+                    <Breadcrumbs />
                     <main className="h-full py-6 px-4 sm:px-6 lg:px-8 flex flex-col max-w-screen-2xl mx-auto">
                         {children}
                     </main>
                 </div>
             </div>
+            <QuickAddFab />
         </div>
     );
 }
