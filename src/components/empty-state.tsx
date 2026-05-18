@@ -1,6 +1,6 @@
 "use client"
 
-import { ReactNode } from "react"
+import { ReactNode, ReactElement } from "react"
 
 type IllustrationType =
     | "subscriptions"
@@ -227,7 +227,7 @@ function DashboardIllustration() {
     )
 }
 
-const illustrations: Record<IllustrationType, () => JSX.Element> = {
+const illustrations: Record<IllustrationType, () => ReactElement> = {
     subscriptions: SubscriptionsIllustration,
     "utility-bills": UtilityBillsIllustration,
     budgets: BudgetsIllustration,
