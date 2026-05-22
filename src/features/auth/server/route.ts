@@ -29,12 +29,12 @@ const app = new Hono()
                 error: "Invalid credentials"
             }, 401)
         }
-        // if (!user.emailVerified) {
-        //     return c.json(
-        //         { error: "Please verify your email first" },
-        //         403
-        //     );
-        // }
+        if (!user.emailVerified) {
+            return c.json(
+                { error: "Please verify your email first" },
+                403
+            );
+        }
 
         const validPassword = await bcrypt.compare(password, user.password)
         if (!validPassword) {
