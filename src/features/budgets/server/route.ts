@@ -251,6 +251,25 @@ const app = new Hono()
 
         return c.json({ data: { copied: toCreate.length, skipped: existingCategories.size } }, 201)
     })
+    // GET /budgets/expenses — all expenses for the user across budgets
+    .get("/expenses", sessionMiddleware, async (c) => {
+        const user = c.get("user")
+        const expenses = await prisma.budgetExpense.findMany({
+            where: { budget: { userId: user.id } },
+            include: { budget: { select: { category: true } } },
+            orderBy: { date: "desc" },
+        })
+        const data = expenses.map((e) => ({
+            id: e.id,
+            budgetId: e.budgetId,
+            budgetCategory: e.budget.category,
+            description: e.description,
+            amount: String(e.amount),
+            date: e.date.toISOString(),
+            notes: e.notes,
+        }))
+        return c.json({ data })
+    })
     // POST /budgets/expenses
     .post("/expenses", sessionMiddleware, zValidator("json", createBudgetExpenseSchema), async (c) => {
         const user = c.get("user")

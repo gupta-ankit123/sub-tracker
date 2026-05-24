@@ -223,6 +223,44 @@ describe("Auth API", () => {
     })
 
     // ══════════════════════════════════════════════
+    // POST /api/auth/resend-otp
+    // ══════════════════════════════════════════════
+    describe("POST /api/auth/resend-otp", () => {
+        it("resends a code for an unverified user", async () => {
+            prismaMock.user.findUnique.mockResolvedValue({ ...TEST_USER, emailVerified: false })
+            prismaMock.user.update.mockResolvedValue({ ...TEST_USER, emailVerified: false })
+
+            const res = await makeUnauthRequest(app, "/api/auth/resend-otp", {
+                method: "POST",
+                body: { email: TEST_USER.email },
+            })
+            expect(res.status).toBe(200)
+        })
+
+        it("rejects resend for an already-verified user", async () => {
+            prismaMock.user.findUnique.mockResolvedValue({ ...TEST_USER, emailVerified: true })
+
+            const res = await makeUnauthRequest(app, "/api/auth/resend-otp", {
+                method: "POST",
+                body: { email: TEST_USER.email },
+            })
+            expect(res.status).toBe(400)
+            const json = await res.json()
+            expect(json.error).toMatch(/already verified/i)
+        })
+
+        it("returns 404 for a non-existent user", async () => {
+            prismaMock.user.findUnique.mockResolvedValue(null)
+
+            const res = await makeUnauthRequest(app, "/api/auth/resend-otp", {
+                method: "POST",
+                body: { email: "nobody@example.com" },
+            })
+            expect(res.status).toBe(404)
+        })
+    })
+
+    // ══════════════════════════════════════════════
     // POST /api/auth/refresh
     // ══════════════════════════════════════════════
     describe("POST /api/auth/refresh", () => {
