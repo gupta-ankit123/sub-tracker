@@ -34,6 +34,13 @@ setInterval(() => {
     }
 }, 60_000)
 
+/** Test-only helper: clears all rate-limit counters so tests don't bleed into each other. */
+export function __resetRateLimiters() {
+    for (const store of stores.values()) {
+        store.clear()
+    }
+}
+
 function getClientIp(c: any): string {
     // Check common proxy headers first
     const forwarded = c.req.header("x-forwarded-for")

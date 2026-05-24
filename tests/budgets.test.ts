@@ -445,4 +445,46 @@ describe("Budgets API", () => {
             expect(res.status).toBe(404)
         })
     })
+
+    // ══════════════════════════════════════════════
+    // GET /api/budgets/expenses
+    // ══════════════════════════════════════════════
+    describe("GET /api/budgets/expenses", () => {
+        it("returns all expenses across the user's budgets with category joined", async () => {
+            prismaMock.user.findUnique.mockResolvedValue(TEST_USER)
+            prismaMock.budgetExpense.findMany.mockResolvedValue([
+                { ...EXPENSE, budget: { category: BUDGET.category } },
+                {
+                    ...EXPENSE,
+                    id: "exp-2",
+                    description: "Coffee",
+                    amount: 80,
+                    budget: { category: "Food" },
+                },
+            ])
+
+            const res = await makeRequest(app, "/api/budgets/expenses")
+            expect(res.status).toBe(200)
+
+            const json = await res.json()
+            expect(json.data).toHaveLength(2)
+            expect(json.data[0].budgetCategory).toBe(BUDGET.category)
+            expect(json.data[1].description).toBe("Coffee")
+        })
+
+        it("returns an empty array when the user has no expenses", async () => {
+            prismaMock.user.findUnique.mockResolvedValue(TEST_USER)
+            prismaMock.budgetExpense.findMany.mockResolvedValue([])
+
+            const res = await makeRequest(app, "/api/budgets/expenses")
+            expect(res.status).toBe(200)
+            const json = await res.json()
+            expect(json.data).toEqual([])
+        })
+
+        it("returns 401 when not authenticated", async () => {
+            const res = await makeUnauthRequest(app, "/api/budgets/expenses")
+            expect(res.status).toBe(401)
+        })
+    })
 })
