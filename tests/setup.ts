@@ -1,4 +1,5 @@
-import { vi } from "vitest"
+import { vi, beforeEach } from "vitest"
+import { __resetRateLimiters } from "@/lib/rateLimiter"
 
 // ── Stub environment variables BEFORE any module loads ──
 process.env.ACCESS_TOKEN_SECRET = "test-access-secret-key-32chars!!"
@@ -48,3 +49,8 @@ vi.mock("@/lib/resend", () => ({
         },
     },
 }))
+
+// ── Reset rate-limiter counters before every test (prevents 429 bleed) ──
+beforeEach(() => {
+    __resetRateLimiters()
+})

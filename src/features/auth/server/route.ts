@@ -29,12 +29,12 @@ const app = new Hono()
                 error: "Invalid credentials"
             }, 401)
         }
-        // if (!user.emailVerified) {
-        //     return c.json(
-        //         { error: "Please verify your email first" },
-        //         403
-        //     );
-        // }
+        if (!user.emailVerified) {
+            return c.json(
+                { error: "Please verify your email first" },
+                403
+            );
+        }
 
         const validPassword = await bcrypt.compare(password, user.password)
         if (!validPassword) {
@@ -156,6 +156,40 @@ const app = new Hono()
             console.log(error);
             return c.json({ error: "Something went wrong" }, 500);
         }
+    })
+    .post("/resend-otp", authTightLimiter, zValidator("json", forgotPasswordSchema), async (c) => {
+        const { email } = c.req.valid("json");
+
+        const user = await prisma.user.findUnique({ where: { email } });
+
+        if (!user) {
+            return c.json({ error: "User not found" }, 404);
+        }
+
+        if (user.emailVerified) {
+            return c.json({ error: "Email already verified" }, 400);
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiry = new Date(Date.now() + 5 * 60 * 1000);
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { otpCode: otp, otpExpiry: expiry },
+        });
+
+        const emailResult = await resend.emails.send({
+            from: process.env.EMAIL_FROM!,
+            to: email,
+            subject: "Verify your email",
+            text: `Your OTP is ${otp}. It will expire in 5 minutes.`,
+        });
+
+        if (emailResult.error) {
+            console.error("Resend error:", emailResult.error);
+        }
+
+        return c.json({ message: "A new verification code has been sent." });
     })
     .post("/refresh", async (c) => {
         const refreshToken = getRefreshTokenFromCookie(c);

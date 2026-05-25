@@ -18,12 +18,12 @@ export const csrfProtection = createMiddleware(async (c, next) => {
     const referer = c.req.header("referer")
     const host = c.req.header("host")
 
-    // In development, allow requests without origin (e.g., Postman, curl)
-    if (process.env.NODE_ENV !== "production") {
-        if (!origin && !referer) {
-            await next()
-            return
-        }
+    // Allow requests with no Origin/Referer — these come from native mobile apps,
+    // server-to-server calls, or tools like Postman. CSRF attacks only happen in
+    // browsers, which always include Origin or Referer on cross-origin requests.
+    if (!origin && !referer) {
+        await next()
+        return
     }
 
     // Normalize host for comparison: strip www. prefix so that
