@@ -41,8 +41,9 @@ const app = new Hono()
             return c.json({ error: "Invalid Credentials" }, 400)
         }
 
-        // Update lastLoginAt timestamp
-        await prisma.user.update({
+        // Update lastLoginAt timestamp and return the fresh row so the client
+        // gets accurate flags (onboardingCompleted, monthlyBudget, etc.).
+        const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: { lastLoginAt: new Date() }
         })
@@ -55,11 +56,7 @@ const app = new Hono()
 
         return c.json({
             message: "login successful",
-            user: {
-                id: user.id,
-                email: user.email,
-                name: user.name
-            }
+            user: updatedUser
         })
     })
     .post("/register", authTightLimiter, zValidator("json", registerSchema), async (c) => {
