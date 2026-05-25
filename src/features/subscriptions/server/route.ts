@@ -473,6 +473,80 @@ const app = new Hono()
             }
         });
     })
+    // NOTE: static-path routes MUST be declared before `/:id`, otherwise Hono
+    // treats segments like `billing-history` as a subscription id and 404s.
+    .get("/billing-history", sessionMiddleware, async (c) => {
+        const user = c.get("user");
+
+        const billingHistory = await prisma.billingHistory.findMany({
+            where: {
+                subscription: {
+                    userId: user.id
+                }
+            },
+            include: {
+                subscription: {
+                    select: {
+                        id: true,
+                        name: true,
+                        category: true,
+                        subscriptionType: true,
+                        logoUrl: true
+                    }
+                }
+            },
+            orderBy: { billingDate: "desc" }
+        });
+
+        return c.json({ data: billingHistory });
+    })
+    .post("/billing-history", sessionMiddleware, zValidator("json", createBillingHistorySchema), async (c) => {
+        const user = c.get("user");
+        const data = c.req.valid("json");
+
+        const subscription = await prisma.subscription.findFirst({
+            where: { id: data.subscriptionId, userId: user.id }
+        });
+
+        if (!subscription) {
+            return c.json({ error: "Subscription not found" }, 404);
+        }
+
+        const billingRecord = await prisma.billingHistory.create({
+            data: {
+                subscriptionId: data.subscriptionId,
+                amount: data.amount,
+                currency: data.currency,
+                billingDate: data.billingDate,
+                paymentStatus: "SUCCESS",
+            }
+        });
+
+        return c.json({ data: billingRecord }, 201);
+    })
+    .patch("/billing-history/:id", sessionMiddleware, zValidator("param", subscriptionIdSchema), zValidator("json", updateBillingHistoryStatusSchema), async (c) => {
+        const user = c.get("user");
+        const { id } = c.req.valid("param");
+        const { paymentStatus } = c.req.valid("json");
+
+        const billingRecord = await prisma.billingHistory.findFirst({
+            where: { id },
+            include: {
+                subscription: true
+            }
+        });
+
+        if (!billingRecord || billingRecord.subscription.userId !== user.id) {
+            return c.json({ error: "Billing record not found" }, 404);
+        }
+
+        const updated = await prisma.billingHistory.update({
+            where: { id },
+            data: { paymentStatus }
+        });
+
+        return c.json({ data: updated });
+    })
     .get("/:id", sessionMiddleware, zValidator("param", subscriptionIdSchema), async (c) => {
         const user = c.get("user");
         const { id } = c.req.valid("param");
@@ -500,6 +574,7 @@ const app = new Hono()
                 name: sanitizeString(data.name),
                 description: data.description ? sanitizeString(data.description) : undefined,
                 category: data.category,
+                subscriptionType: data.subscriptionType ?? null,
                 logoUrl: data.logoUrl || null,
                 websiteUrl: data.websiteUrl || null,
                 amount: data.amount,
@@ -568,76 +643,6 @@ const app = new Hono()
         });
 
         return c.json({ message: "Subscription deleted successfully" });
-    })
-    .get("/billing-history", sessionMiddleware, async (c) => {
-        const user = c.get("user");
-
-        const billingHistory = await prisma.billingHistory.findMany({
-            where: {
-                subscription: {
-                    userId: user.id
-                }
-            },
-            include: {
-                subscription: {
-                    select: {
-                        id: true,
-                        name: true,
-                        logoUrl: true
-                    }
-                }
-            },
-            orderBy: { billingDate: "desc" }
-        });
-
-        return c.json({ data: billingHistory });
-    })
-    .post("/billing-history", sessionMiddleware, zValidator("json", createBillingHistorySchema), async (c) => {
-        const user = c.get("user");
-        const data = c.req.valid("json");
-
-        const subscription = await prisma.subscription.findFirst({
-            where: { id: data.subscriptionId, userId: user.id }
-        });
-
-        if (!subscription) {
-            return c.json({ error: "Subscription not found" }, 404);
-        }
-
-        const billingRecord = await prisma.billingHistory.create({
-            data: {
-                subscriptionId: data.subscriptionId,
-                amount: data.amount,
-                currency: data.currency,
-                billingDate: data.billingDate,
-                paymentStatus: "SUCCESS",
-            }
-        });
-
-        return c.json({ data: billingRecord }, 201);
-    })
-    .patch("/billing-history/:id", sessionMiddleware, zValidator("param", subscriptionIdSchema), zValidator("json", updateBillingHistoryStatusSchema), async (c) => {
-        const user = c.get("user");
-        const { id } = c.req.valid("param");
-        const { paymentStatus } = c.req.valid("json");
-
-        const billingRecord = await prisma.billingHistory.findFirst({
-            where: { id },
-            include: {
-                subscription: true
-            }
-        });
-
-        if (!billingRecord || billingRecord.subscription.userId !== user.id) {
-            return c.json({ error: "Billing record not found" }, 404);
-        }
-
-        const updated = await prisma.billingHistory.update({
-            where: { id },
-            data: { paymentStatus }
-        });
-
-        return c.json({ data: updated });
     })
     .post("/:id/mark-paid", sessionMiddleware, zValidator("param", subscriptionIdSchema), async (c) => {
         const user = c.get("user");

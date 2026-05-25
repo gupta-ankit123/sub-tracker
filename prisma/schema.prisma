@@ -28,6 +28,7 @@ model User {
   updatedTime DateTime  @updatedAt @map("updated_at")
 
   monthlyIncome Decimal? @map("monthly_income") @db.Decimal(12, 2)
+  monthlyBudget Decimal? @map("monthly_budget") @db.Decimal(12, 2)
 
   onboardingCompleted Boolean @default(false) @map("onboarding_completed")
 
@@ -51,11 +52,12 @@ model Subscription {
   id     String @id @default(cuid())
   userId String @map("user_id")
 
-  name        String  @db.VarChar(255)
-  description String? @db.Text
-  category    String  @db.VarChar(100)
-  logoUrl     String? @map("logo_url") @db.Text
-  websiteUrl  String? @map("website_url") @db.Text
+  name             String  @db.VarChar(255)
+  description      String? @db.Text
+  category         String  @db.VarChar(100)
+  subscriptionType String? @map("subscription_type") @db.VarChar(50)
+  logoUrl          String? @map("logo_url") @db.Text
+  websiteUrl       String? @map("website_url") @db.Text
 
   amount       Decimal      @db.Decimal(10, 2)
   currency     String       @default("INR") @db.VarChar(3)
