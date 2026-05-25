@@ -242,7 +242,7 @@ const app = new Hono()
     })
     .patch("/settings", sessionMiddleware, zValidator("json", updateSettingsSchema), async (c) => {
         const user = c.get("user");
-        const { currencyCode, timezone, emailNotifications, pushNotifications, reminderDaysBefore } = c.req.valid("json");
+        const { currencyCode, timezone, emailNotifications, pushNotifications, reminderDaysBefore, monthlyIncome, monthlyBudget } = c.req.valid("json");
 
         const updatedUser = await prisma.user.update({
             where: { id: user.id },
@@ -251,6 +251,8 @@ const app = new Hono()
                 ...(timezone !== undefined && { timezone }),
                 ...(emailNotifications !== undefined && { emailNotifications }),
                 ...(pushNotifications !== undefined && { pushNotifications }),
+                ...(monthlyIncome !== undefined && { monthlyIncome }),
+                ...(monthlyBudget !== undefined && { monthlyBudget }),
             },
         });
 

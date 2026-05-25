@@ -27,6 +27,8 @@ export const updateSettingsSchema = z.object({
     emailNotifications: z.boolean().optional(),
     pushNotifications: z.boolean().optional(),
     reminderDaysBefore: z.number().int().min(1).max(30).optional(),
+    monthlyIncome: z.number().nonnegative().optional(),
+    monthlyBudget: z.number().nonnegative().optional(),
 })
 
 export const changePasswordSchema = z.object({
