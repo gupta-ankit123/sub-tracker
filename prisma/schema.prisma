@@ -30,6 +30,11 @@ model User {
   monthlyIncome Decimal? @map("monthly_income") @db.Decimal(12, 2)
   monthlyBudget Decimal? @map("monthly_budget") @db.Decimal(12, 2)
 
+  // Collected at sign-up for age-based compliance (we enforce age >= 13 in
+  // the request schema). DATE rather than TIMESTAMP — we only care about the
+  // calendar day.
+  dateOfBirth DateTime? @map("date_of_birth") @db.Date
+
   onboardingCompleted Boolean @default(false) @map("onboarding_completed")
 
   emailNotifications Boolean   @default(true) @map("email_notifications")
