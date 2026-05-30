@@ -30,6 +30,30 @@ function calculateNextBillingDate(billingCycle: BillingCycle, fromDate: Date): D
     return next;
 }
 
+function calculatePreviousBillingDate(billingCycle: BillingCycle, fromDate: Date): Date {
+    const prev = new Date(fromDate);
+    switch (billingCycle) {
+        case "WEEKLY":
+            prev.setDate(prev.getDate() - 7);
+            break;
+        case "MONTHLY":
+            prev.setMonth(prev.getMonth() - 1);
+            break;
+        case "QUARTERLY":
+            prev.setMonth(prev.getMonth() - 3);
+            break;
+        case "SEMI_ANNUAL":
+            prev.setMonth(prev.getMonth() - 6);
+            break;
+        case "ANNUAL":
+            prev.setFullYear(prev.getFullYear() - 1);
+            break;
+        case "ONE_TIME":
+            break;
+    }
+    return prev;
+}
+
 const app = new Hono()
     .get("/", sessionMiddleware, async (c) => {
         const user = c.get("user");
@@ -473,6 +497,79 @@ const app = new Hono()
             }
         });
     })
+    // ---- Billing history routes must come BEFORE the dynamic `/:id` routes
+    // below, otherwise some Hono router configs match "billing-history" as a
+    // subscription ID parameter and return a 404 "Subscription not found".
+    .get("/billing-history", sessionMiddleware, async (c) => {
+        const user = c.get("user");
+
+        const billingHistory = await prisma.billingHistory.findMany({
+            where: {
+                subscription: {
+                    userId: user.id
+                }
+            },
+            include: {
+                subscription: {
+                    select: {
+                        id: true,
+                        name: true,
+                        logoUrl: true
+                    }
+                }
+            },
+            orderBy: { billingDate: "desc" }
+        });
+
+        return c.json({ data: billingHistory });
+    })
+    .post("/billing-history", sessionMiddleware, zValidator("json", createBillingHistorySchema), async (c) => {
+        const user = c.get("user");
+        const data = c.req.valid("json");
+
+        const subscription = await prisma.subscription.findFirst({
+            where: { id: data.subscriptionId, userId: user.id }
+        });
+
+        if (!subscription) {
+            return c.json({ error: "Subscription not found" }, 404);
+        }
+
+        const billingRecord = await prisma.billingHistory.create({
+            data: {
+                subscriptionId: data.subscriptionId,
+                amount: data.amount,
+                currency: data.currency,
+                billingDate: data.billingDate,
+                paymentStatus: "SUCCESS",
+            }
+        });
+
+        return c.json({ data: billingRecord }, 201);
+    })
+    .patch("/billing-history/:id", sessionMiddleware, zValidator("param", subscriptionIdSchema), zValidator("json", updateBillingHistoryStatusSchema), async (c) => {
+        const user = c.get("user");
+        const { id } = c.req.valid("param");
+        const { paymentStatus } = c.req.valid("json");
+
+        const billingRecord = await prisma.billingHistory.findFirst({
+            where: { id },
+            include: {
+                subscription: true
+            }
+        });
+
+        if (!billingRecord || billingRecord.subscription.userId !== user.id) {
+            return c.json({ error: "Billing record not found" }, 404);
+        }
+
+        const updated = await prisma.billingHistory.update({
+            where: { id },
+            data: { paymentStatus }
+        });
+
+        return c.json({ data: updated });
+    })
     .get("/:id", sessionMiddleware, zValidator("param", subscriptionIdSchema), async (c) => {
         const user = c.get("user");
         const { id } = c.req.valid("param");
@@ -569,76 +666,6 @@ const app = new Hono()
 
         return c.json({ message: "Subscription deleted successfully" });
     })
-    .get("/billing-history", sessionMiddleware, async (c) => {
-        const user = c.get("user");
-
-        const billingHistory = await prisma.billingHistory.findMany({
-            where: {
-                subscription: {
-                    userId: user.id
-                }
-            },
-            include: {
-                subscription: {
-                    select: {
-                        id: true,
-                        name: true,
-                        logoUrl: true
-                    }
-                }
-            },
-            orderBy: { billingDate: "desc" }
-        });
-
-        return c.json({ data: billingHistory });
-    })
-    .post("/billing-history", sessionMiddleware, zValidator("json", createBillingHistorySchema), async (c) => {
-        const user = c.get("user");
-        const data = c.req.valid("json");
-
-        const subscription = await prisma.subscription.findFirst({
-            where: { id: data.subscriptionId, userId: user.id }
-        });
-
-        if (!subscription) {
-            return c.json({ error: "Subscription not found" }, 404);
-        }
-
-        const billingRecord = await prisma.billingHistory.create({
-            data: {
-                subscriptionId: data.subscriptionId,
-                amount: data.amount,
-                currency: data.currency,
-                billingDate: data.billingDate,
-                paymentStatus: "SUCCESS",
-            }
-        });
-
-        return c.json({ data: billingRecord }, 201);
-    })
-    .patch("/billing-history/:id", sessionMiddleware, zValidator("param", subscriptionIdSchema), zValidator("json", updateBillingHistoryStatusSchema), async (c) => {
-        const user = c.get("user");
-        const { id } = c.req.valid("param");
-        const { paymentStatus } = c.req.valid("json");
-
-        const billingRecord = await prisma.billingHistory.findFirst({
-            where: { id },
-            include: {
-                subscription: true
-            }
-        });
-
-        if (!billingRecord || billingRecord.subscription.userId !== user.id) {
-            return c.json({ error: "Billing record not found" }, 404);
-        }
-
-        const updated = await prisma.billingHistory.update({
-            where: { id },
-            data: { paymentStatus }
-        });
-
-        return c.json({ data: updated });
-    })
     .post("/:id/mark-paid", sessionMiddleware, zValidator("param", subscriptionIdSchema), async (c) => {
         const user = c.get("user");
         const { id } = c.req.valid("param");
@@ -652,14 +679,73 @@ const app = new Hono()
         }
 
         const now = new Date();
-        const updated = await prisma.subscription.update({
-            where: { id },
-            data: {
-                lastPaidDate: now,
-                paymentStatus: "SUCCESS",
-                nextBillingDate: calculateNextBillingDate(subscription.billingCycle, now)
-            }
+        const [updated] = await prisma.$transaction([
+            prisma.subscription.update({
+                where: { id },
+                data: {
+                    lastPaidDate: now,
+                    paymentStatus: "SUCCESS",
+                    nextBillingDate: calculateNextBillingDate(subscription.billingCycle, now)
+                }
+            }),
+            // Record the payment in billing history so the user can see it.
+            prisma.billingHistory.create({
+                data: {
+                    subscriptionId: id,
+                    amount: subscription.amount,
+                    currency: subscription.currency,
+                    billingDate: now,
+                    paymentStatus: "SUCCESS",
+                }
+            }),
+        ]);
+
+        return c.json({ data: updated });
+    })
+    .post("/:id/mark-unpaid", sessionMiddleware, zValidator("param", subscriptionIdSchema), async (c) => {
+        const user = c.get("user");
+        const { id } = c.req.valid("param");
+
+        const subscription = await prisma.subscription.findFirst({
+            where: { id, userId: user.id }
         });
+
+        if (!subscription) {
+            return c.json({ error: "Subscription not found" }, 404);
+        }
+
+        // Find the most recent SUCCESS billing-history entry so we can delete
+        // it (the mark-paid we're reversing) and the next-most-recent to
+        // restore lastPaidDate.
+        const recentSuccesses = await prisma.billingHistory.findMany({
+            where: { subscriptionId: id, paymentStatus: "SUCCESS" },
+            orderBy: { billingDate: "desc" },
+            take: 2,
+        });
+
+        if (recentSuccesses.length === 0) {
+            return c.json({ error: "Nothing to undo — this subscription has no recorded payment." }, 400);
+        }
+
+        const latest = recentSuccesses[0];
+        const previous = recentSuccesses[1];
+
+        const previousBillingDate = calculatePreviousBillingDate(
+            subscription.billingCycle,
+            subscription.nextBillingDate
+        );
+
+        const [, updated] = await prisma.$transaction([
+            prisma.billingHistory.delete({ where: { id: latest.id } }),
+            prisma.subscription.update({
+                where: { id },
+                data: {
+                    paymentStatus: "PENDING",
+                    lastPaidDate: previous?.billingDate ?? null,
+                    nextBillingDate: previousBillingDate,
+                },
+            }),
+        ]);
 
         return c.json({ data: updated });
     })
