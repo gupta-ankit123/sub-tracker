@@ -76,18 +76,30 @@ const app = new Hono()
         }
 
         const now = new Date();
-        const updates = subscriptions.map(sub =>
-            prisma.subscription.update({
-                where: { id: sub.id },
-                data: {
-                    lastPaidDate: now,
-                    paymentStatus: "SUCCESS",
-                    nextBillingDate: calculateNextBillingDate(sub.billingCycle, now)
-                }
+        // Update each subscription and create the matching BillingHistory
+        // row atomically so History and per-category spend stay in sync.
+        await prisma.$transaction([
+            ...subscriptions.map(sub =>
+                prisma.subscription.update({
+                    where: { id: sub.id },
+                    data: {
+                        lastPaidDate: now,
+                        paymentStatus: "SUCCESS",
+                        nextBillingDate: calculateNextBillingDate(sub.billingCycle, now)
+                    }
+                })
+            ),
+            prisma.billingHistory.createMany({
+                data: subscriptions.map(sub => ({
+                    subscriptionId: sub.id,
+                    amount: sub.amount,
+                    currency: sub.currency,
+                    billingDate: now,
+                    paymentStatus: "SUCCESS" as const,
+                }))
             })
-        );
+        ]);
 
-        await Promise.all(updates);
         return c.json({ data: { success: true, count: subscriptions.length } });
     })
     .post("/bulk/delete", sessionMiddleware, zValidator("json", bulkIdsSchema), async (c) => {
@@ -514,6 +526,8 @@ const app = new Hono()
                     select: {
                         id: true,
                         name: true,
+                        category: true,
+                        subscriptionType: true,
                         logoUrl: true
                     }
                 }
@@ -597,6 +611,7 @@ const app = new Hono()
                 name: sanitizeString(data.name),
                 description: data.description ? sanitizeString(data.description) : undefined,
                 category: data.category,
+                subscriptionType: data.subscriptionType ?? null,
                 logoUrl: data.logoUrl || null,
                 websiteUrl: data.websiteUrl || null,
                 amount: data.amount,
@@ -679,6 +694,9 @@ const app = new Hono()
         }
 
         const now = new Date();
+        // Record the payment in BillingHistory and update the subscription's
+        // payment status / next billing date together so the History tab and
+        // per-category spend on the Expenses screen pick up the payment.
         const [updated] = await prisma.$transaction([
             prisma.subscription.update({
                 where: { id },
@@ -688,7 +706,6 @@ const app = new Hono()
                     nextBillingDate: calculateNextBillingDate(subscription.billingCycle, now)
                 }
             }),
-            // Record the payment in billing history so the user can see it.
             prisma.billingHistory.create({
                 data: {
                     subscriptionId: id,

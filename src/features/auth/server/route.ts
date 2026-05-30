@@ -41,8 +41,9 @@ const app = new Hono()
             return c.json({ error: "Invalid Credentials" }, 400)
         }
 
-        // Update lastLoginAt timestamp
-        await prisma.user.update({
+        // Update lastLoginAt timestamp and return the fresh row so the client
+        // gets accurate flags (onboardingCompleted, monthlyBudget, etc.).
+        const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: { lastLoginAt: new Date() }
         })
@@ -55,11 +56,7 @@ const app = new Hono()
 
         return c.json({
             message: "login successful",
-            user: {
-                id: user.id,
-                email: user.email,
-                name: user.name
-            }
+            user: updatedUser
         })
     })
     .post("/register", authTightLimiter, zValidator("json", registerSchema), async (c) => {
@@ -242,7 +239,7 @@ const app = new Hono()
     })
     .patch("/settings", sessionMiddleware, zValidator("json", updateSettingsSchema), async (c) => {
         const user = c.get("user");
-        const { currencyCode, timezone, emailNotifications, pushNotifications, reminderDaysBefore } = c.req.valid("json");
+        const { currencyCode, timezone, emailNotifications, pushNotifications, reminderDaysBefore, monthlyIncome, monthlyBudget } = c.req.valid("json");
 
         const updatedUser = await prisma.user.update({
             where: { id: user.id },
@@ -251,6 +248,8 @@ const app = new Hono()
                 ...(timezone !== undefined && { timezone }),
                 ...(emailNotifications !== undefined && { emailNotifications }),
                 ...(pushNotifications !== undefined && { pushNotifications }),
+                ...(monthlyIncome !== undefined && { monthlyIncome }),
+                ...(monthlyBudget !== undefined && { monthlyBudget }),
             },
         });
 
