@@ -60,7 +60,7 @@ const app = new Hono()
         })
     })
     .post("/register", authTightLimiter, zValidator("json", registerSchema), async (c) => {
-        const { name, email, password } = c.req.valid("json")
+        const { name, email, password, dateOfBirth } = c.req.valid("json")
         const sanitizedName = sanitizeString(name);
 
         const existingUser = await prisma.user.findUnique({
@@ -80,6 +80,7 @@ const app = new Hono()
                 email,
                 password: hashedPassword,
                 name: sanitizedName,
+                dateOfBirth: new Date(dateOfBirth),
                 emailVerified: false,
                 otpCode: otp,
                 otpExpiry: expiry,
@@ -214,7 +215,7 @@ const app = new Hono()
     })
     .patch("/profile", sessionMiddleware, zValidator("json", updateProfileSchema), async (c) => {
         const user = c.get("user");
-        const { name, phone } = c.req.valid("json");
+        const { name, phone, dateOfBirth } = c.req.valid("json");
         const sanitizedName = sanitizeString(name);
         const sanitizedPhone = phone ? sanitizeString(phone) : null;
 
@@ -232,6 +233,10 @@ const app = new Hono()
             data: {
                 name: sanitizedName,
                 phone: sanitizedPhone,
+                // Only touch dateOfBirth when the client sent it; this keeps
+                // partial profile updates (e.g. just changing the name) from
+                // wiping an existing DOB.
+                ...(dateOfBirth !== undefined && { dateOfBirth: new Date(dateOfBirth) }),
             },
         });
 
