@@ -40,7 +40,9 @@ export const verifyOtpSchema = z.object({
 
 export const updateProfileSchema = z.object({
     name: z.string().trim().min(1, "Name is required"),
-    phone: z.string().optional().or(z.literal("")),
+    // Accept string, "", null, or omitted — clients with no phone on file
+    // send null in the JSON body, which previously got rejected.
+    phone: z.string().nullish().or(z.literal("")),
     // Existing accounts may not have a DOB yet; let them set or change it
     // from the profile screen. Same age constraints as registration apply.
     dateOfBirth: dateOfBirthField.optional(),
